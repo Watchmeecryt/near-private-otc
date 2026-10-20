@@ -114,7 +114,7 @@ export default function Create() {
                   <div className="sum-cell"><span>Vs market</span><b>{diff === null ? "n/a" : !manual ? "≈ market" : fmtPct(diff)}</b></div>
                   <div className="sum-cell"><span>Board shows</span><b>{vis === "private" ? "Nothing (private)" : boardPreview(give, get)}</b></div>
                 </div>
-                <p className="sum-line">You're offering <b>{nice(giveAmt)} {tok(give).symbol}</b> for <b>{nice(getAmt)} {tok(get).symbol}</b>. {vis === "private" ? "Not listed on the board: only people with your link can open it." : "Signed-in traders see only the pair and expiry on the board."} Exact amounts stay private.</p>
+                <p className="sum-line">You're offering <b>{nice(giveAmt)} {tok(give).symbol}</b> for <b>{nice(getAmt)} {tok(get).symbol}</b>. {vis === "private" ? "Not listed on the board: only people with your link can find it. Exact amounts stay sealed; traders with $200+ in the token you want can request terms, and you approve who sees them." : "The board shows only the pair and expiry. Exact amounts stay sealed; traders with $200+ in the token you want can request terms, and you approve who sees them."}</p>
               </>
             ) : <p className="muted small">Fill in what you give and what you want back. You'll see a plain-English summary here.</p>}
           </div>

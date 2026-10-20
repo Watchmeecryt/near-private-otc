@@ -59,8 +59,8 @@ export function PairIcon({ a, b, size = 40 }: { a: string; b: string; size?: num
 export function PrivacyNote() {
   return (
     <div className="privacy-note">
-      <div><EyeSlash size={15} weight="bold" /> <b>Private</b> exact size, price, counter-offers, notes, unfilled deals. Sealed to the enclave; only the two parties can read them.</div>
-      <div><Eye size={15} weight="bold" /> <b>Public</b> pair, side, expiry, status, number of counter-offers, and on settlement the two token transfers on NEAR.</div>
+      <div><EyeSlash size={15} weight="bold" /> <b>Private</b> exact size, price, counter-offers and notes. Sealed to the enclave; only you and requesters you approve (who hold $200+ of the token you want) can read them.</div>
+      <div><Eye size={15} weight="bold" /> <b>Public</b> on the open board: pair, side, expiry, status, request and counter-offer counts (private deals: link only). On settlement, the two token transfers on NEAR.</div>
     </div>
   );
 }
