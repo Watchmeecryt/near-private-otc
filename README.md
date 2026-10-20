@@ -56,6 +56,7 @@ What the operator (keeper) sees: sealed blobs, the coarse facts above, and *whic
 | OutLayer TEE + yield/resume | Sealed terms, reveal and matching run in Intel TDX; called on chain | [OutLayer](https://outlayer.fastnear.com) |
 | NEP-141 tokens & wNEAR | `tUSDC`, `tETH` (upstream FT wasm), `wrap.testnet` | [FT](https://docs.near.org/primitives/ft) |
 | Testnet helper (faucet) API | Created the project's top-level testnet accounts | [Faucet](https://docs.near.org/tools/faucet) |
+| Reference prices | New deal autofills the receive amount at CoinGecko market (tUSDC→USDC, wNEAR→NEAR, tETH→ETH) and shows % vs market on deals and counters; reference only | [CoinGecko API](https://docs.coingecko.com/reference/simple-price) |
 | NearBlocks | Every seal, settlement and cancel links to testnet.nearblocks.io | [NearBlocks](https://testnet.nearblocks.io) |
 
 Considered and skipped: chain signatures (no cross-chain leg needed on testnet), passkeys / WebAuthn intents (Privy is the only sign-in by design), wallet selector (same reason), 1Click / confidential relay (mainnet only), partial fills (see limits).

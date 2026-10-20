@@ -18,5 +18,6 @@
 
 ## API
 - GET /api/health
+- GET /api/prices — reference USD prices (CoinGecko, cached 30 s)
 - GET /api/deals — public board
 - GET /api/deals/{id}

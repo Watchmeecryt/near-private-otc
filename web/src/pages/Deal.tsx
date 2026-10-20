@@ -9,6 +9,8 @@ import { reveal, cachedReveal, signedOffer, cancelPayloads, fmt, sym } from "../
 import { StatusChip, SignPanel, PrivacyNote, Steps, Tx, useNow } from "../components/ui";
 import { countdown, short } from "../lib/format";
 import { toUnits, fromUnits, tokenById } from "@shared/otc.mjs";
+import { usePrices, vsMarket, fmtPct } from "../lib/prices";
+const human = (id: string, u: string) => Number(fromUnits(u, tokenById(id).decimals, 18));
 
 const mirror = (t: Terms): Terms => ({ sell_token: t.buy_token, sell_amount: t.buy_amount, buy_token: t.sell_token, buy_amount: t.sell_amount });
 const who = (a: string, me: string | null) => (a === me ? "You" : a === "*" ? "anyone" : short(a, 6, 4));
@@ -17,6 +19,9 @@ export default function Deal() {
   const { id = "" } = useParams();
   const { account } = useApp();
   const toast = useToast(); const now = useNow(1000);
+  const prices = usePrices();
+  const mk = (t: Terms) => vsMarket(prices, t.sell_token, human(t.sell_token, t.sell_amount), t.buy_token, human(t.buy_token, t.buy_amount));
+  const Mkt = ({ t, who: w }: { t: Terms; who: string }) => { const d = mk(t); return d === null ? null : <span className={`mkt-tag ${Math.abs(d) < 0.5 ? "" : d > 0 ? "up" : "down"}`} title={`${w} asks ${fmtPct(d)} vs CoinGecko market`}>{fmtPct(d)} vs market</span>; };
   const [d, setD] = useState<Coarse | null>(null);
   const [my, setMy] = useState<MyDeal | null>(null);
   const [rev, setRev] = useState<Revealed[] | null>(null);
@@ -102,7 +107,7 @@ export default function Deal() {
                 {offers.filter((o) => o.r || o.kind !== "open").map((o) => (
                   <li key={o.id} className={`th-item ${o.status}`}>
                     <div className="th-top"><b>{o.kind === "open" ? "Listing" : o.kind === "counter" ? "Counter" : "Accept"}</b><span className="muted">{who(o.from, me)} → {who(o.to, me)}</span><span className={`chip ${o.status === "live" ? "chip-blue" : o.status === "settled" ? "chip-green" : "chip-muted"}`}>{o.status}</span></div>
-                    {o.r ? <div className="mono th-terms">{who(o.from, me)} give{o.from === me ? "" : "s"} {fmt(o.r.terms.sell_token, o.r.terms.sell_amount)} · get{o.from === me ? "" : "s"} {fmt(o.r.terms.buy_token, o.r.terms.buy_amount)}{o.r.note && <div className="muted">“{o.r.note}”</div>}</div> : <div className="muted small">Sealed. Tap refresh to re-open.</div>}
+                    {o.r ? <div className="mono th-terms">{who(o.from, me)} give{o.from === me ? "" : "s"} {fmt(o.r.terms.sell_token, o.r.terms.sell_amount)} · get{o.from === me ? "" : "s"} {fmt(o.r.terms.buy_token, o.r.terms.buy_amount)}<div style={{ marginTop: 4 }}><Mkt t={o.r.terms} who={who(o.from, me)} /><span className="tiny muted">for {who(o.from, me)}</span></div>{o.r.note && <div className="muted">“{o.r.note}”</div>}</div> : <div className="muted small">Sealed. Tap refresh to re-open.</div>}
                   </li>
                 ))}
               </ul>
@@ -128,6 +133,7 @@ export default function Deal() {
                   <label className="field"><span>You give ({sym(targetTerms.buy_token)})</span><input className="input mono" value={give} onChange={(e) => setGive(e.target.value)} /></label>
                   <label className="field"><span>You get ({sym(targetTerms.sell_token)})</span><input className="input mono" value={get} onChange={(e) => setGet(e.target.value)} /></label>
                 </div>
+                {counterTerms() && <p className="tiny"><Mkt t={counterTerms()!} who="You" /> <span className="muted">for you, at CoinGecko reference prices</span></p>}
                 {counterTerms() && <SignPanel kind="Counter token_diff, sealed to the enclave" terms={counterTerms()!} deadline={deadlineMs} gas="None until settlement (relayer pays)." />}
                 <div className="row-gap"><button className="btn btn-ghost btn-sm" onClick={() => setMode(null)}>Back</button><button className="btn btn-dark btn-sm" disabled={!counterTerms() || !!busy} onClick={() => send("counter")}>{busy || "Sign & send counter"}</button></div>
               </div>

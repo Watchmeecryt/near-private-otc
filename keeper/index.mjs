@@ -82,7 +82,21 @@ async function faucet(accountId, symbol) {
   lastValue(o); return { tx: o.transaction.hash, amount, token: t.id };
 }
 
+// Reference USD prices (CoinGecko), cached 30 s. tUSDC->USDC, wNEAR->NEAR, tETH->ETH.
+let priceCache = { at: 0, v: null };
+async function prices() {
+  if (priceCache.v && Date.now() - priceCache.at < 30000) return priceCache.v;
+  try {
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=usd-coin,near,ethereum&vs_currencies=usd", { signal: AbortSignal.timeout(6000), headers: { accept: "application/json" } });
+    const j = await r.json();
+    if (!j?.near?.usd) throw new Error("bad price response");
+    priceCache = { at: Date.now(), v: { tUSDC: j["usd-coin"]?.usd ?? 1, wNEAR: j.near.usd, tETH: j.ethereum.usd, source: "CoinGecko", at: new Date().toISOString() } };
+  } catch (e) { if (!priceCache.v) throw new HttpError(503, "Price feed unavailable"); }
+  return priceCache.v;
+}
+
 const routes = [
+  ["GET", /^\/api\/prices$/, async () => prices()],
   ["GET", /^\/api\/health$/, async () => ({ ok: true, keeper: KEEPER_ID, verifier: VERIFIER, deals: Object.keys(db.deals).length, relayer: !!keeper })],
   ["GET", /^\/api\/deals$/, async () => Object.values(db.deals).sort((a, b) => b.created - a.created).map(publicDeal)],
   ["GET", /^\/api\/deals\/([\w]+)$/, async (req, [id]) => publicDeal(getDeal(id))],
