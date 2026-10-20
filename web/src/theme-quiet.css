@@ -167,3 +167,7 @@ html[data-theme="dark"] .exp-chips button.on { color: #1d1b18; }
 .summary .sum-line { font-size: 14.5px; margin: 0; }
 .under-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
 @media (max-width: 760px) { .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.skel-card { display: grid; gap: 12px; min-height: 120px; align-content: center; }
+.skel-line { display: block; height: 14px; border-radius: 8px; background: linear-gradient(90deg, var(--soft-2), var(--gold-wash), var(--soft-2)); background-size: 200% 100%; animation: skel 1.2s linear infinite; }
+.skel-line.short { width: 55%; }
+@keyframes skel { to { background-position: -200% 0; } }

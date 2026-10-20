@@ -17,7 +17,7 @@ export const NAV = [
 ];
 
 export default function Shell() {
-  const { account, login, logout, email } = useApp();
+  const { account, login, logout, email, ready } = useApp();
   const loc = useLocation();
   return (
     <div className="shell">
@@ -30,7 +30,7 @@ export default function Shell() {
         ))}
         <div className="side-foot">
           <div style={{ display: "flex", gap: 8 }}><ThemeToggle /></div>
-          {account ? <AccountCard account={account} email={email} onLogout={logout} /> : <button className="btn btn-dark btn-sm" onClick={() => login().catch(() => {})}><EnvelopeSimple size={16} /> Sign in</button>}
+          {!ready ? <span className="skel-line" style={{ width: 120, height: 34 }} /> : account ? <AccountCard account={account} email={email} onLogout={logout} /> : <button className="btn btn-dark btn-sm" onClick={() => login().catch(() => {})}><EnvelopeSimple size={16} /> Sign in</button>}
         </div>
       </aside>
       <main className="main" key={loc.pathname}><div className="fade-up page-narrow"><Outlet /></div></main>
@@ -44,17 +44,18 @@ export default function Shell() {
 }
 
 export function Top({ title, sub, children }: { title: string; sub?: string; children?: React.ReactNode }) {
-  const { account, login } = useApp();
+  const { account, login, ready } = useApp();
   return (
     <div className="topbar">
       <div><h1>{title}</h1>{sub && <p>{sub}</p>}</div>
-      <div className="topbar-actions"><a href="/app/wallet#faucet" className="btn btn-ghost btn-sm faucet-link"><Drop size={15} weight="fill" /> Faucet</a>{children}<span className="mobile-only"><ThemeToggle /></span>{!account && <span className="mobile-only"><button className="btn btn-dark btn-sm" onClick={() => login().catch(() => {})}>Sign in</button></span>}</div>
+      <div className="topbar-actions"><a href="/app/wallet#faucet" className="btn btn-ghost btn-sm faucet-link"><Drop size={15} weight="fill" /> Faucet</a>{children}<span className="mobile-only"><ThemeToggle /></span>{ready && !account && <span className="mobile-only"><button className="btn btn-dark btn-sm" onClick={() => login().catch(() => {})}>Sign in</button></span>}</div>
     </div>
   );
 }
 
 export function NeedSignIn({ what }: { what: string }) {
-  const { login } = useApp();
+  const { login, ready } = useApp();
+  if (!ready) return <div className="card card-pad skel-card" aria-busy="true"><span className="skel-line" /><span className="skel-line short" /></div>;
   return (
     <div className="card empty">
       <span className="icon-chip" style={{ margin: "0 auto" }}><EnvelopeSimple size={22} weight="duotone" /></span>

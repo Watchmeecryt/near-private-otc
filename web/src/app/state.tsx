@@ -10,7 +10,14 @@ export function AppState({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   useEffect(() => {
-    const sync = () => currentUser().then(async (u) => { setEmail(u?.email ?? null); setAccount(u?.account ?? null); setReady(true); if (u) { const a = await ensureAccount(); if (a) setAccount(a); } });
+    // Stay "not ready" until Privy is ready AND, for a signed-in user, the NEAR account has hydrated,
+    // so a refresh never flashes the sign-in prompt for someone who is already logged in.
+    const sync = () => currentUser().then(async (u) => {
+      setEmail(u?.email ?? null);
+      if (u && !u.account) { const a = await ensureAccount().catch(() => null); setAccount(a ?? null); } else setAccount(u?.account ?? null);
+      setReady(true);
+      if (u?.account) ensureAccount().then((a) => { if (a) setAccount(a); }).catch(() => {});
+    }).catch(() => setReady(true));
     sync(); return onAuthChange(sync);
   }, []);
   const login = async () => { const u = await signIn(); setAccount(u.account); setEmail(u.email); return u.account; };
