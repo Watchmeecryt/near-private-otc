@@ -49,7 +49,7 @@ export default function Landing() {
         <div className="section-head"><div className="eyebrow">Privacy</div><h2>What stays private, what's public</h2></div>
         <div className="compare2">
           <div className="card cmp priv"><h3><EyeSlash size={20} weight="duotone" /> Private</h3><ul><li>Exact size and price</li><li>Counter-offers and notes</li><li>Unfilled and cancelled deals</li><li>Signed intents before settlement</li></ul><p className="tiny muted">Sealed to the enclave; only the two parties can read them. The operator relays sealed blobs.</p></div>
-          <div className="card cmp pub"><h3><Eye size={20} weight="duotone" /> Public</h3><ul><li>Pair, side, expiry (signed-in only)</li><li>Deal status</li><li>Settled transfers on NEAR</li><li>That an enclave job ran</li></ul><p className="tiny muted">The operator also sees which accounts requested or countered, never the terms.</p></div>
+          <div className="card cmp pub"><h3><Eye size={20} weight="duotone" /> Public</h3><ul><li>Pair, side, expiry, request count</li><li>Deal status</li><li>Settled transfers on NEAR</li><li>That an enclave job ran</li></ul><p className="tiny muted">The operator also sees which accounts requested or countered, never the terms.</p></div>
         </div>
       </div></section>
 

@@ -5,7 +5,9 @@ import { CheckCircle, ArrowsLeftRight, XCircle, Eye, Copy, Prohibit } from "@pho
 import { Top, NeedSignIn } from "../app/Shell";
 import { useApp } from "../app/state";
 import { api, type Coarse, type MyDeal, type Revealed, type Terms, type OfferMeta } from "../lib/api";
-import { reveal, cachedReveal, signedOffer, cancelPayloads, fmt, sym } from "../lib/deal";
+import { reveal, cachedReveal, signedOffer, cancelPayloads, fmt, sym, requestAccess, signApproval } from "../lib/deal";
+import { walletCanSign } from "../lib/wallet";
+import { isWallet } from "../lib/signer";
 import { StatusChip, SignPanel, PrivacyNote, Steps, Tx, useNow } from "../components/ui";
 import { countdown, short } from "../lib/format";
 import { toUnits, fromUnits, tokenById } from "@shared/otc.mjs";
@@ -35,8 +37,7 @@ export default function Deal() {
   useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
   useEffect(() => { if (account) setRev(cachedReveal(account, id)); }, [account, id]);
 
-  if (!account) return <><Top title="Deal" /><NeedSignIn what="Sign in to view this deal." /></>;
-  if (!d) return <><Top title="Deal" /><div className="card card-pad muted">Loading… (or this deal does not exist)</div></>;
+    if (!d) return <><Top title="Deal" /><div className="card card-pad muted">Loading… (or this deal does not exist)</div></>;
   const me = account;
   const offers: (OfferMeta & { r?: Revealed })[] = (my?.offers || []).map((o) => ({ ...o, r: rev?.find((x) => x.commitment === o.commitment) }));
   const open = offers.find((o) => o.kind === "open") || (rev?.find((x) => x.to === "*") ? { id: "o1", kind: "open", from: rev!.find((x) => x.to === "*")!.from, to: "*", status: "live", r: rev!.find((x) => x.to === "*") } as any : null);
@@ -50,6 +51,11 @@ export default function Deal() {
   const step = d.status === "Settled" ? 3 : offers.some((o) => o.kind === "counter") ? 2 : rev ? 1 : 0;
   const deadlineMs = Date.parse(d.deadline);
 
+  const myReq = my?.my_request?.status as string | undefined;
+  const canSign = !isWallet(me) || walletCanSign();
+  const doRequest = async () => { try { setBusy("Enclave is checking your funds (~10 s)…"); const r = await requestAccess(me!, id); toast.show({ title: r.request.status === "approved" ? "Approved" : "Request sent", sub: r.request.status === "approved" ? "This maker auto-approves anyone with funds. Open the terms now." : "Funds check passed. The maker will see your request.", tone: "success" }); load(); } catch (e: any) { toast.show({ title: "Request refused", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
+  const decide = async (requester: string, decision: "approve" | "decline") => { try { setBusy("Signing approval…"); const approval = decision === "approve" ? await signApproval(me!, id, requester) : undefined; setBusy("Checking approval in the enclave…"); await api(`/api/deals/${id}/approve`, { account: me, requester, decision, approval }); toast.show({ title: decision === "approve" ? "Approved" : "Declined", tone: "success" }); load(); } catch (e: any) { toast.show({ title: "Failed", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
+  const setAuto = async (on: boolean) => { try { setBusy("Updating…"); const approval = on ? await signApproval(me!, id, "*") : undefined; await api(`/api/deals/${id}/auto`, { account: me, approval, off: !on }); toast.show({ title: on ? "Auto-approve on" : "Auto-approve off", sub: on ? "Anyone who passes the funds check sees the terms right away." : undefined, tone: "success" }); load(); } catch (e: any) { toast.show({ title: "Failed", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
   const doReveal = async () => { try { setBusy("Asking the enclave (OutLayer TEE, ~10 s)…"); const r = await reveal(me!, id); setRev(r.offers); load(); } catch (e: any) { toast.show({ title: "Could not reveal", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
   const startCounter = () => { if (!targetTerms) return; const m = mirror(targetTerms); setGive(fromUnits(m.sell_amount, tokenById(m.sell_token).decimals, 18)); setGet(fromUnits(m.buy_amount, tokenById(m.buy_token).decimals, 18)); setMode("counter"); };
   const counterTerms = (): Terms | null => { if (!targetTerms) return null; try { const m = mirror(targetTerms); return { ...m, sell_amount: toUnits(give, tokenById(m.sell_token).decimals), buy_amount: toUnits(get, tokenById(m.buy_token).decimals) }; } catch { return null; } };
@@ -101,10 +107,18 @@ export default function Deal() {
         {!me ? <NeedSignIn what="Sign in to request the exact terms." /> : (
           <div className="card card-pad">
             <div className="row-between"><h3 className="h3">Private terms</h3>{rev && <span className="chip chip-green">visible to you only</span>}</div>
-            {!rev ? (
+            {!canSign && <p className="wallet-note">This wallet can't sign messages here, so it can't request or trade. Connect Meteor, HOT, Intear, HERE or MyNearWallet, or sign in with email.</p>}
+            {!rev ? (isMaker || myReq === "approved") ? (
               <>
-                <p className="muted small">The enclave checks your sign-in and re-seals the exact terms to a one-time key in this browser. Nobody else, including the operator, can read them.</p>
-                <button className="btn btn-dark btn-full" disabled={!!busy} onClick={doReveal}><Eye size={16} weight="bold" /> {busy || (isMaker ? "Open my deal" : "Request terms")}</button>
+                <p className="muted small">{isMaker ? "Your terms are sealed. The enclave re-seals them to a one-time key in this browser." : "The maker approved you. The enclave re-seals the exact terms to a one-time key in this browser; nobody else, including the operator, can read them."}</p>
+                <button className="btn btn-dark btn-full" disabled={!!busy || !canSign} onClick={doReveal}><Eye size={16} weight="bold" /> {busy || (isMaker ? "Open my deal" : "Open the terms")}</button>
+              </>
+            ) : myReq === "pending" ? (
+              <p className="muted small">Request sent. You passed the funds check; waiting for the maker to approve you.{d.auto_approve && <> The maker just turned on auto-approve: <button className="link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }} onClick={doRequest}>check again</button>.</>}</p>
+            ) : (
+              <>
+                <p className="muted small">{myReq === "declined" ? "The maker declined your last request. You can ask again." : <>To see the exact terms, request access. The enclave privately checks that you hold enough <b>{d.side === "sell" ? d.pair.split("/")[1] : d.pair.split("/")[0]}</b> (in Private OTC or your wallet) to fill this deal, without telling anyone the amount. {d.auto_approve ? "This maker auto-approves anyone who passes." : "Then the maker approves you."}</>}</p>
+                <button className="btn btn-dark btn-full" disabled={!!busy || !live || !canSign} onClick={doRequest}><Eye size={16} weight="bold" /> {busy || "Request terms"}</button>
               </>
             ) : (
               <ul className="thread">
@@ -140,6 +154,15 @@ export default function Deal() {
                 {counterTerms() && <p className="tiny"><Mkt t={counterTerms()!} who="You" /> <span className="muted">for you, at CoinGecko reference prices</span></p>}
                 {counterTerms() && <SignPanel kind="Counter token_diff, sealed to the enclave" terms={counterTerms()!} deadline={deadlineMs} gas="None until settlement (relayer pays)." />}
                 <div className="row-gap"><button className="btn btn-ghost btn-sm" onClick={() => setMode(null)}>Back</button><button className="btn btn-dark btn-sm" disabled={!counterTerms() || !!busy} onClick={() => send("counter")}>{busy || "Sign & send counter"}</button></div>
+              </div>
+            )}
+            {isMaker && (
+              <div style={{ marginTop: 16 }}>
+                <div className="row-between"><h3 className="h3">Requests</h3><label className="tiny" style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={!!d.auto_approve} disabled={!!busy || !live} onChange={(e) => setAuto(e.target.checked)} /> Auto-approve anyone with funds</label></div>
+                {my?.requests?.length ? <ul className="req-list">{[...my.requests].reverse().map((q) => (
+                  <li key={q.account}><span className="mono" title={q.account}>{short(q.account, 10, 4)}</span><span className="tiny muted">funds ✓ · {new Date(q.at).toLocaleString()}</span>
+                    {q.status === "pending" && live ? <span className="row-gap"><button className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => decide(q.account, "decline")}>Decline</button><button className="btn btn-dark btn-sm" disabled={!!busy} onClick={() => decide(q.account, "approve")}>Approve</button></span> : <span className={`chip ${q.status === "approved" ? "chip-green" : "chip-muted"}`}>{q.status}{q.auto ? " (auto)" : ""}</span>}</li>))}</ul>
+                  : <p className="muted small">No requests yet. Everyone who requests has already passed the enclave's funds check.</p>}
               </div>
             )}
             {isMaker && live && <button className="btn btn-text btn-sm danger" disabled={!!busy} onClick={cancel}><Prohibit size={14} /> Cancel deal (burn nonces)</button>}

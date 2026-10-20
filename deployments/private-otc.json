@@ -23,11 +23,12 @@
       "register_verifier": "AYBMXKkFj9otimfi7U48xqzq4r5x4oAA6rxrQdKMzPAy"
     },
     "enclave_pubkey_run": "9mXRyuvrpPwTQKbgRtfrVhLEPUqCJ7hn5PgFPCz67Heo",
-    "enclave_check_no_size_verify": "39thnBujPM8CGkLHzqo6W9XjLUD2dYMHHF1L7JVU9DpU"
+    "enclave_check_no_size_verify": "5LSXagw941np87ivkJKf6H1HgWFcoWc5ZLEVhQxXmyK2",
+    "enclave_request_pof_verify": "Bh9CPVcSwFpgQiNrL6fpL7JTMhHeGTTSMJyGxXjxYzgv"
   },
   "outlayer_project": "otcdesk-enclave.testnet/private-otc",
-  "enclave_wasm_sha256": "137501e48aee5d6667dc7d368274ea29b676d24e52580e8e8d4705f98ea16aaf",
-  "enclave_wasm_url": "https://test.fastfs.io/otcdesk-enclave.testnet/outlayer.testnet/137501e48aee5d6667dc7d368274ea29b676d24e52580e8e8d4705f98ea16aaf.wasm",
+  "enclave_wasm_sha256": "7702fa1c1bcb9c1f1942959711cec061a1e96c610300448a3d43b2f8251fa4fe",
+  "enclave_wasm_url": "https://test.fastfs.io/otcdesk-enclave.testnet/outlayer.testnet/7702fa1c1bcb9c1f1942959711cec061a1e96c610300448a3d43b2f8251fa4fe.wasm",
   "enclave_pubkey": "03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8",
   "verifier_wasm": "near/intents release defuse/v0.4.2 defuse.wasm sha256 f67f9559b3b512c52dfa11723a28b9119bcf773ac01780370d6409e5f1fb20e5",
   "token_wasm": "near/intents releases/fungible-token.wasm sha256 12c5f9bd9136b4396823478281a61368b4c74cdaf35ab5743b302c3aac55a354"

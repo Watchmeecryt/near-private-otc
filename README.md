@@ -27,7 +27,7 @@
 
 | Public | Where |
 | --- | --- |
-| Pair, side, expiry, status, counter-offer count | Deal board (`/api/deals`, signed-in users only) |
+| Pair, side, expiry, status, request and counter-offer counts | Deal board (`/api/deals`, open to everyone; private deals are not listed) |
 | Settled transfers (both signed intents, amounts, accounts) | NEAR testnet, via `execute_intents` |
 | That an OutLayer job ran (sealed input/output) | NEAR testnet (`outlayer.testnet`) |
 
@@ -59,7 +59,7 @@ What the operator (keeper) sees: sealed blobs, the coarse facts above, and *whic
 | Reference prices | New deal autofills the receive amount at CoinGecko market (tUSDC→USDC, wNEAR→NEAR, tETH→ETH) and shows % vs market on deals and counters; reference only | [CoinGecko API](https://docs.coingecko.com/reference/simple-price) |
 | NearBlocks | Every seal, settlement and cancel links to testnet.nearblocks.io | [NearBlocks](https://testnet.nearblocks.io) |
 
-Considered and skipped: chain signatures (no cross-chain leg needed on testnet), passkeys / WebAuthn intents (Privy is the only sign-in by design), wallet selector (same reason), 1Click / confidential relay (mainnet only), partial fills (see limits).
+Considered and skipped: chain signatures (no cross-chain leg needed on testnet), passkeys / WebAuthn intents, 1Click / confidential relay (mainnet only), partial fills (see limits).
 
 ## Deployed ids (testnet)
 
@@ -112,16 +112,16 @@ MIT
 ## Deal flow rules
 
 - The board and deal pages require a Privy sign-in. Cards show pair, status, expiry and counter-offer count only.
-- Any signed-in user can ask the enclave to reveal a deal's opening terms. Each reveal is logged per deal (account + time) and the maker sees that list on the deal page.
+- Terms are gated by **Request access** + **proof of funds** + **maker approval** (see below). Each reveal is still logged per deal (account + time) for the maker.
 - Many counterparties can counter the same deal in parallel; each sees only their own thread, the maker sees all and accepts one.
 - First settlement wins: the keeper serialises settlement per deal, and the verifier burns the NEP-413 nonces on execute, so every other accept fails with a clear "already settled" message and no funds move.
 
 ## Public vs private deals
 
 - **Public** (default): listed on the board (`/api/deals`) for every signed-in user.
-- **Private**: never listed. It shows up only in the maker's My deals and at its share link `/d/<id>`. Deal ids are 16 random characters (about 79 bits), so the link can't be guessed. Any signed-in user with the link can open, reveal, counter and accept; there is no allowlist.
+- **Private**: never listed. It shows up only in the maker's My deals and at its share link `/d/<id>`. Deal ids are 16 random characters (about 79 bits), so the link can't be guessed. Anyone with the link sees the coarse facts and can request access; the same proof-of-funds + approval flow applies. There is no address allowlist.
 - The maker can switch Private → Public (`POST /api/deals/:id/publish`). Public → Private is refused: once listed, others may already have seen it.
-- Where it's enforced: in the keeper API. No on-chain flag is needed. The verifier only ever executes two matching NEP-413 signed intents, and visibility only controls who can *find* a deal. The enclave reveals terms to any signed-in account that asks, so privacy rests on the link not being guessable, not on the chain.
+- Where it's enforced: in the keeper API. No on-chain flag is needed. The verifier only ever executes two matching NEP-413 signed intents, and visibility only controls who can *find* a deal. Terms themselves are still gated by the enclave (funds check + maker approval).
 
 ## Expiry
 
@@ -130,3 +130,32 @@ Chips: **2 min (demo)**, 1h, 24h, 7d. The chosen time becomes the `deadline` ins
 ## Enclave output
 
 The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `137501e48aee5d6667dc7d368274ea29b676d24e52580e8e8d4705f98ea16aaf` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
+
+## Request access, proof of funds, maker approval
+
+The board is open: anyone (no sign-in) sees public deals' pair, side, expiry, status and how many requests and counter-offers they have. Exact terms stay sealed.
+
+1. **Request terms.** A signed-in taker (Privy or NEAR wallet) seals `{identity, account, deal}` to the enclave. Identity is the Privy access token, or for wallet users a NEP-413 signed login.
+2. **Proof of funds, in the enclave.** The enclave authenticates the requester, then reads, over NEAR RPC from inside the TEE, `mt_balance_of` on the verifier plus `ft_balance_of` in the wallet for the token the maker wants. It compares the sum with the sealed receive amount. It outputs only `funded: true/false` and the token symbol, never the amount. The keeper never sees the amount. If the check fails, the request is refused: "You need enough <token> to request this deal".
+3. **Maker approval.** Qualified requests appear on the maker's deal page and in My deals. Approve = the maker signs a NEP-413 message `{otc_approve: deal, requester}`. The enclave validates that signature against the maker's key before the keeper stores it.
+4. **Reveal.** The enclave re-seals the terms to the requester's one-time browser key only if a valid maker approval for that account (or `"*"`) is presented. A `"*"` approval also re-checks funds. The keeper can't forge approvals: they're signed by the maker and checked in the TEE.
+5. **Auto-approve** (per deal, at creation or later): the maker signs `{otc_approve: deal, requester: "*"}`. Anyone who passes the funds check is approved immediately. Turning it off stops the keeper using it for new requests.
+6. **Counter / accept** are only accepted from approved requesters (keeper). Parallel counters, maker picks one, first settlement wins (per-deal lock + verifier nonce burn).
+
+Limits: pass/fail reveals whether the requester's (public) balance covers the amount, a one-bit hint. The requester's account appears in the OutLayer job input on chain, sealed, but the job runs as the keeper.
+
+## Sign-in: Privy or a NEAR wallet
+
+- **Email or Google (Privy):** a NEAR implicit account is created for you; signing is silent (Privy raw-hash signing).
+- **NEAR wallets (NEAR Wallet Selector v10):** Meteor, HOT, Intear, HERE, MyNearWallet, Ledger. Log in by signing a NEP-413 message `{otc_login: account, ts}` for recipient `near-private-otc`. The keeper (`POST /api/auth/wallet`) checks the ed25519 signature and that the key is a full-access key of the account (or the implicit account itself), then issues a 24 h session. The enclave re-checks the same signed login itself.
+- Trading signs `token_diff` intents with the wallet's `signMessage` (recipient = verifier). Named accounts register their key on the verifier once (`add_public_key`, 1 yoctoNEAR, prompted automatically).
+- Deposits: Wallet → "Deposit from your wallet" sends `ft_transfer_call` to the verifier (NEAR is wrapped with `near_deposit` in the same transaction).
+
+| Wallet | Connect | Sign-in / requests / trades (signMessage) | Deposits |
+|---|---|---|---|
+| Meteor | yes | yes | yes |
+| HOT | yes | yes | yes |
+| Intear | yes | yes | yes |
+| HERE | yes | yes | yes |
+| MyNearWallet | yes | yes (popup) | yes |
+| Ledger | yes | no, shown disabled with a note | yes |

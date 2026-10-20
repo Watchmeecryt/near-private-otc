@@ -7,6 +7,7 @@ import path from "node:path";
 import { account, call, view, lastValue } from "./chain.mjs";
 import { enclave } from "./enclave.mjs";
 import { fund, privyNearAccounts } from "./fund.mjs";
+import { walletLogin } from "./walletauth.mjs";
 import { VERIFIER, TOKENS, tokenById, toUnits, base58, randomBytes } from "../shared/otc.mjs";
 
 const RPC_UPSTREAMS = (process.env.RPC_UPSTREAMS || "https://test.rpc.fastnear.com,https://neart.lava.build,https://rpc.testnet.pagoda.co").split(",");
@@ -22,20 +23,24 @@ const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 // ---- store ----
 const db = fs.existsSync(DB) ? JSON.parse(fs.readFileSync(DB, "utf8")) : { deals: {}, faucet: {} };
+db.sessions ||= {};
 let saving = null;
 const save = () => { clearTimeout(saving); saving = setTimeout(() => fs.writeFileSync(DB + ".tmp", JSON.stringify(db)) || fs.renameSync(DB + ".tmp", DB), 50); };
 const expired = (d) => Date.parse(d.coarse.deadline) < Date.now();
 const publicStatus = (d) => d.status === "Settled" || d.status === "Cancelled" ? d.status : expired(d) ? "Expired" : "Open";
 const counterCount = (d) => d.offers.filter((o) => o.kind === "counter").length;
-const publicDeal = (d) => ({ id: d.id, pair: d.coarse.pair, side: d.coarse.side, deadline: d.coarse.deadline, status: publicStatus(d), counters: counterCount(d), visibility: d.visibility || "public", created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
+const publicDeal = (d) => ({ id: d.id, pair: d.coarse.pair, side: d.coarse.side, deadline: d.coarse.deadline, status: publicStatus(d), counters: counterCount(d), requests: (d.requests || []).length, auto_approve: !!d.auto, visibility: d.visibility || "public", created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
 /** Status as seen by one account. */
 function myStatus(d, me) {
   const p = publicStatus(d); if (p !== "Open") return p;
   const mine = d.offers.filter((o) => o.from === me || o.to === me);
   if (mine.some((o) => o.kind === "counter" && o.status === "live")) return "Countered";
-  if (d.maker === me ? d.requesters.length : d.requesters.includes(me)) return "Requested";
+  if (d.maker === me) return (d.requests || []).some((q) => q.status === "pending") ? "Requests" : "Open";
+  const q = reqOf(d, me); if (q) return q.status === "approved" ? "Approved" : q.status === "declined" ? "Declined" : "Requested";
   return "Open";
 }
+const reqOf = (d, me) => (d.requests || []).find((q) => q.account === me);
+const approved = (d, me) => d.maker === me || reqOf(d, me)?.status === "approved";
 const thread = (d, me) => d.offers.filter((o) => d.maker === me || o.to === "*" || o.from === me || o.to === me).map(({ ct, ...o }) => o);
 
 // ---- http helpers ----
@@ -55,6 +60,12 @@ class HttpError extends Error { constructor(code, msg) { super(msg); this.code =
 const authCache = new Map();
 async function who(req, want) {
   const b = bearerOf(req);
+  if (b.startsWith("nw_")) {
+    const s = db.sessions[b];
+    if (!s || s.exp < Date.now()) throw new HttpError(401, "Please sign in again.");
+    if (want && want !== s.account) throw new HttpError(403, "That NEAR account is not this wallet.");
+    return { sub: "wallet:" + s.account, accounts: [s.account], wallet: s.proof };
+  }
   let r = authCache.get(b);
   if (!r || r.exp < Date.now()) { r = { v: await privyNearAccounts(b), exp: Date.now() + 120000 }; if (r.v) authCache.set(b, r); }
   if (!r.v) throw new HttpError(401, "Please sign in again.");
@@ -100,15 +111,16 @@ async function prices() {
 const routes = [
   ["GET", /^\/api\/prices$/, async () => prices()],
   ["GET", /^\/api\/health$/, async () => ({ ok: true, keeper: KEEPER_ID, verifier: VERIFIER, deals: Object.keys(db.deals).length, relayer: !!keeper })],
-  ["GET", /^\/api\/deals$/, async (req) => (await who(req), Object.values(db.deals).filter((d) => d.visibility !== "private").sort((a, b) => b.created - a.created).map(publicDeal))],
-  ["GET", /^\/api\/deals\/([\w]+)$/, async (req, [id]) => (await who(req), publicDeal(getDeal(id)))],
+  ["GET", /^\/api\/deals$/, async () => (Object.values(db.deals).filter((d) => d.visibility !== "private").sort((a, b) => b.created - a.created).map(publicDeal))],
+  ["GET", /^\/api\/deals\/([\w]+)$/, async (req, [id]) => publicDeal(getDeal(id))],
   ["GET", /^\/api\/my$/, async (req, _, url) => {
     const me = url.searchParams.get("account"); await who(req, me);
-    return Object.values(db.deals).filter((d) => d.maker === me || d.requesters.includes(me) || d.offers.some((o) => o.from === me || o.to === me))
-      .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined, views: d.maker === me ? (d.views || []) : undefined }));
+    return Object.values(db.deals).filter((d) => d.maker === me || d.requesters.includes(me) || !!reqOf(d, me) || d.offers.some((o) => o.from === me || o.to === me))
+      .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined, views: d.maker === me ? (d.views || []) : undefined,
+        requests: d.maker === me ? (d.requests || []).map(({ approval, ...q }) => q) : undefined, my_request: d.maker === me ? undefined : (({ approval, ...q }) => q)(reqOf(d, me) || {}) }));
   }],
   ["POST", /^\/api\/deals$/, async (req) => {
-    const { offer_ct, nonce, account: me, visibility } = await jbody(req); await who(req, me);
+    const { offer_ct, nonce, account: me, visibility, auto_approval } = await jbody(req); await who(req, me);
     if (visibility && !["public", "private"].includes(visibility)) throw new HttpError(400, "visibility must be public or private");
     const c = await enclave(keeper, { action: "check", offers: [offer_ct] });
     if (Date.parse(c.deadline) <= Date.now()) throw new HttpError(400, "That expiry is already in the past.");
@@ -117,12 +129,16 @@ const routes = [
     const d = { id: c.deal, created: Date.now(), maker: me, status: "Open", visibility: visibility || "public", requesters: [], check_tx: c.tx,
       coarse: { pair: c.pair, side: c.side, deadline: c.deadline },
       offers: [{ id: "o1", kind: "open", from: me, to: "*", nonce, at: Date.now(), status: "live", ct: offer_ct, commitment: c.commitment, tx: c.tx }] };
+    d.requests = [];
+    if (auto_approval) { const a = await enclave(keeper, { action: "approval", offers: [offer_ct], approval: auto_approval }); if (a.requester === "*") d.auto = auto_approval; }
     db.deals[d.id] = d; save(); log("deal", d.id, c.pair);
     return publicDeal(d);
   }],
   ["POST", /^\/api\/deals\/(\w+)\/reveal$/, async (req, [id]) => {
     const d = getDeal(id); const { request_ct, account: me } = await jbody(req); await who(req, me);
-    const r = await enclave(keeper, { action: "reveal", request: request_ct, offers: d.offers.map((o) => o.ct) });
+    if (!approved(d, me)) throw new HttpError(403, reqOf(d, me) ? "Waiting for the maker to approve your request." : "Request the terms first.");
+    const approval = d.maker === me ? undefined : reqOf(d, me).approval;
+    const r = await enclave(keeper, { action: "reveal", request: request_ct, offers: d.offers.map((o) => o.ct), approval });
     if (r.viewer !== me || r.deal !== id) throw new HttpError(400, "Request mismatch");
     if (me !== d.maker) { if (!d.requesters.includes(me)) d.requesters.push(me); (d.views ||= []).push({ account: me, at: Date.now() }); if (d.views.length > 500) d.views.shift(); save(); log("reveal", id, me); }
     return { offers_ct: r.offers_ct, visible: r.visible, tx: r.tx, offers: thread(d, me) };
@@ -130,6 +146,7 @@ const routes = [
   ["POST", /^\/api\/deals\/(\w+)\/offer$/, async (req, [id]) => {
     const d = getDeal(id); const { offer_ct, nonce, account: me, kind, reply_to } = await jbody(req); await who(req, me);
     if (publicStatus(d) !== "Open") throw new HttpError(409, `This deal is ${publicStatus(d).toLowerCase()}.`);
+    if (!approved(d, me)) throw new HttpError(403, "Only requesters the maker approved can counter or accept.");
     const prev = d.offers.find((o) => o.id === reply_to && o.status === "live");
     if (!prev) throw new HttpError(404, "That offer is no longer live.");
     const c = await enclave(keeper, { action: "check", offers: [offer_ct] });
@@ -154,6 +171,47 @@ const routes = [
     d.offers.forEach((x) => { if (x.status === "live") x.status = "closed"; });
     d.status = "Settled"; d.settle_tx = tx; d.settle_enclave_tx = s.tx; save(); log("settled", id, tx);
     return { settled: true, tx, enclave_tx: s.tx };
+  }],
+  ["POST", /^\/api\/auth\/wallet$/, async (req) => {
+    if (limited(req, 10)) throw new HttpError(429, "Slow down.");
+    const { signed } = await jbody(req);
+    let account; try { account = await walletLogin(signed); } catch (e) { throw new HttpError(401, e.message); }
+    const token = "nw_" + Buffer.from(randomBytes(24)).toString("hex");
+    db.sessions[token] = { account, proof: signed, exp: Date.now() + 86400000 };
+    for (const [k, v] of Object.entries(db.sessions)) if (v.exp < Date.now()) delete db.sessions[k];
+    save(); return { token, account };
+  }],
+  ["POST", /^\/api\/deals\/(\w+)\/request$/, async (req, [id]) => {
+    // Proof of funds runs in the enclave: it compares the requester's verifier + wallet balance of the
+    // token the maker wants with the sealed amount and answers yes/no. The keeper never sees the amount.
+    const d = getDeal(id); const { request_ct, account: me } = await jbody(req); await who(req, me);
+    if (publicStatus(d) !== "Open") throw new HttpError(409, `This deal is ${publicStatus(d).toLowerCase()}.`);
+    if (d.maker === me) throw new HttpError(400, "This is your own deal.");
+    const ex = reqOf(d, me); if (ex && ex.status !== "declined" && !(ex.status === "pending" && d.auto)) return { request: (({ approval, ...q }) => q)(ex) };
+    const r = await enclave(keeper, { action: "request", request: request_ct, offers: [d.offers[0].ct] });
+    if (r.viewer !== me || r.deal !== id) throw new HttpError(400, "Request mismatch");
+    if (!r.funded) throw new HttpError(403, `You need enough ${r.want} to request this deal. Top up in Wallet and try again.`);
+    const q = { account: me, at: Date.now(), status: d.auto ? "approved" : "pending", auto: !!d.auto, tx: r.tx, approval: d.auto || undefined };
+    d.requests = (d.requests || []).filter((x) => x.account !== me); d.requests.push(q); save(); log("request", id, me, q.status);
+    return { request: (({ approval, ...x }) => x)(q) };
+  }],
+  ["POST", /^\/api\/deals\/(\w+)\/approve$/, async (req, [id]) => {
+    const d = getDeal(id); const { account: me, requester, decision, approval } = await jbody(req); await who(req, me);
+    if (d.maker !== me) throw new HttpError(403, "Only the maker can approve requests.");
+    const q = reqOf(d, requester); if (!q) throw new HttpError(404, "No such request.");
+    if (decision === "decline") { q.status = "declined"; delete q.approval; save(); return { ok: true }; }
+    const a = await enclave(keeper, { action: "approval", offers: [d.offers[0].ct], approval });
+    if (a.requester !== requester) throw new HttpError(400, "Approval doesn't match that requester.");
+    q.status = "approved"; q.approval = approval; q.approved_at = Date.now(); save(); log("approve", id, requester);
+    return { ok: true };
+  }],
+  ["POST", /^\/api\/deals\/(\w+)\/auto$/, async (req, [id]) => {
+    const d = getDeal(id); const { account: me, approval, off } = await jbody(req); await who(req, me);
+    if (d.maker !== me) throw new HttpError(403, "Only the maker can change this.");
+    if (off) { d.auto = null; save(); return { auto_approve: false }; }
+    const a = await enclave(keeper, { action: "approval", offers: [d.offers[0].ct], approval });
+    if (a.requester !== "*") throw new HttpError(400, "Auto-approve needs an approval for anyone (*).");
+    d.auto = approval; save(); return { auto_approve: true };
   }],
   ["POST", /^\/api\/deals\/(\w+)\/publish$/, async (req, [id]) => {
     // One way only: private -> public. Once listed, others may have seen it, so it can't be hidden again.

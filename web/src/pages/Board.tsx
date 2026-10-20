@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Plus, LockKey } from "@phosphor-icons/react";
-import { Top, NeedSignIn } from "../app/Shell";
+import { Top } from "../app/Shell";
 import { useApp } from "../app/state";
 import { api, type Coarse } from "../lib/api";
 import { StatusChip, useNow, PairIcon } from "../components/ui";
@@ -13,11 +13,10 @@ export default function Board() {
   const [show, setShow] = useState<"open" | "all">("open");
   const now = useNow(5000);
   useEffect(() => { const load = () => api<Coarse[]>("/api/deals").then(setDeals).catch(() => {}); load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [account]);
-  if (!account) return <><Top title="Deal board" sub="Open OTC deals, visible to signed-in traders." /><NeedSignIn what="Sign in to see the deal board." /></>;
   const list = (deals || []).filter((d) => show === "all" || d.status === "Open");
   return (
     <>
-      <Top title="Deal board" sub="Open OTC deals. Every signed-in trader sees what is on offer. Exact amounts stay private until you open a deal.">
+      <Top title="Deal board" sub="Open OTC deals. Open to everyone. Terms stay sealed until the maker approves you. Exact amounts stay private until you open a deal.">
         <Link to="/app/new" className="btn btn-dark btn-sm"><Plus size={15} weight="bold" /> New deal</Link>
       </Top>
       <div className="seg" style={{ marginBottom: 14 }}>
@@ -37,7 +36,7 @@ export default function Board() {
                   <span className="tiny muted">Maker sells {give}, wants {get}</span>
                 </div>
               </>; })()}
-              <div className="dr-meta"><span className="chip chip-muted">{d.counters} counter{d.counters === 1 ? "" : "s"}</span><span className="muted">{Date.parse(d.deadline) > now ? countdown(Date.parse(d.deadline) - now) + " left" : "ended"}</span><StatusChip s={d.status} /><ArrowRight size={16} /></div>
+              <div className="dr-meta"><span className="chip chip-muted">{d.requests} request{d.requests === 1 ? "" : "s"}</span><span className="chip chip-muted">{d.counters} counter{d.counters === 1 ? "" : "s"}</span><span className="muted">{Date.parse(d.deadline) > now ? countdown(Date.parse(d.deadline) - now) + " left" : "ended"}</span><StatusChip s={d.status} /><ArrowRight size={16} /></div>
             </Link>
           ))}
         </div>

@@ -24,6 +24,8 @@ base64 = "0.22"
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "std"] }
 ecies = { version = "0.2", default-features = false, features = ["pure", "std"] }
 libsecp256k1 = "0.7"
+ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+bs58 = "0.5"
 wasi-http-client = { version = "0.2", optional = true }
 
 [profile.release]

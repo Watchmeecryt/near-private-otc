@@ -59,8 +59,8 @@ export function NeedSignIn({ what }: { what: string }) {
   return (
     <div className="card empty">
       <span className="icon-chip" style={{ margin: "0 auto" }}><EnvelopeSimple size={22} weight="duotone" /></span>
-      <h3>Sign in with email or Google</h3>
-      <p>{what} You get a NEAR testnet account automatically: no wallet, no seed phrase. We top it up with a little test NEAR.</p>
+      <h3>Sign in with email, Google or a NEAR wallet</h3>
+      <p>{what} Email or Google gives you a NEAR testnet account automatically (no seed phrase). Or connect Meteor, HOT, Intear, HERE, MyNearWallet or Ledger.</p>
       <button className="btn btn-dark" onClick={() => login().catch(() => {})}>Sign in</button>
     </div>
   );
@@ -76,7 +76,7 @@ function AccountCard({ account, email, onLogout }: { account: string; email: str
     <div className="acct-card">
       <div className="acct">
         <Persona email={email} name={account} size={30} />
-        <div className="acct-id"><div className="muted acct-k">Signed in · testnet</div><div className="who" title={email || account}>{email || short(account, 10, 6)}</div></div>
+        <div className="acct-id"><div className="muted acct-k">{useApp().kind === "wallet" ? `${(useApp().walletId || "wallet").replace(/-wallet$/, "")} wallet · testnet` : "Signed in · testnet"}</div><div className="who" title={email || account}>{email || short(account, 10, 6)}</div></div>
         <button className="icon-btn acct-btn" onClick={onLogout} aria-label="Sign out" title="Sign out"><SignOut size={16} /></button>
       </div>
       <div className="acct-row">

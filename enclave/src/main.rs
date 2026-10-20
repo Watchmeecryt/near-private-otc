@@ -4,9 +4,13 @@
 //!   pubkey : the enclave's ECIES public key (secp256k1). Browsers seal deal offers to it.
 //!   check  : open one sealed offer, verify its signed NEAR Intents payload matches the sealed terms,
 //!            and return ONLY coarse public facts (pair, side, deadline, parties; no size or price).
+//!   request: proof of funds. A signed-in requester (Privy or NEP-413 wallet sign-in) is checked
+//!            against the maker's sealed receive amount: verifier + wallet balance >= amount. Yes/no only.
+//!   approval: validate a maker's NEP-413 approval {otc_approve: deal, requester | "*"}.
 //!   reveal : a signed-in party proves (via Privy, checked from inside the TEE) that they hold a NEAR
 //!            account; the enclave re-seals the exact terms of the offers that account may see to the
-//!            caller's one-time browser key. The opening offer is visible to any signed-in account;
+//!            caller's one-time browser key. The opening offer is visible to the maker and to requesters the maker approved
+//!            (or anyone with funds if the maker signed a "*" approval);
 //!            counter-offers and accepts only to the two parties named inside them.
 //!   settle : two sealed offers that are exact mirror images (same deal, opposite token legs, equal
 //!            amounts, different signers) -> the two signed intents in plaintext, ready for
@@ -17,6 +21,7 @@
 
 mod jwt;
 mod net;
+mod nearauth;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -33,7 +38,7 @@ const TOKENS: &[(&str, &str, u32)] = &[
 ];
 
 #[derive(Deserialize)]
-struct Input { action: String, #[serde(default)] offers: Vec<String>, request: Option<String> }
+struct Input { action: String, #[serde(default)] offers: Vec<String>, request: Option<String>, approval: Option<Value> }
 
 #[derive(Deserialize, Clone)]
 struct Terms { sell_token: String, sell_amount: String, buy_token: String, buy_amount: String }
@@ -53,7 +58,16 @@ struct Offer {
 }
 
 #[derive(Deserialize)]
-struct RevealReq { id_token: String, eph_pub: String, account: String, deal: String }
+struct RevealReq { #[serde(default)] id_token: Option<String>, #[serde(default)] wallet: Option<Value>, #[serde(default)] eph_pub: String, account: String, deal: String }
+
+/// Who is asking: Privy sign-in (embedded NEAR wallet) or a NEP-413 wallet sign-in.
+fn authenticate(req: &RevealReq) -> Result<(), String> {
+    if let Some(w) = &req.wallet { if nearauth::wallet_login(w)? == req.account { return Ok(()); } return Err("wallet sign-in is for another account".into()); }
+    let wallets = jwt::near_wallets(req.id_token.as_deref().ok_or("sign in first")?)?;
+    if wallets.iter().any(|w| *w == req.account) { Ok(()) } else { Err("this sign-in does not hold that NEAR account".into()) }
+}
+/// Proof of funds: requester holds at least what the maker wants (never output, only a yes/no).
+fn funded(o: &Offer, account: &str) -> Result<bool, String> { Ok(nearauth::balance(account, &o.terms.buy_token)? >= amt(&o.terms.buy_amount)?) }
 
 fn main() {
     let mut s = String::new();
@@ -146,8 +160,17 @@ fn run(input: Input) -> Result<Value, String> {
         "reveal" => {
             let (_, rplain) = open(input.request.as_deref().ok_or("request")?)?;
             let req: RevealReq = serde_json::from_slice(&rplain).map_err(|e| format!("request json: {e}"))?;
-            let wallets = jwt::near_wallets(&req.id_token)?;
-            if !wallets.iter().any(|w| *w == req.account) { return Err("this sign-in does not hold that NEAR account".into()); }
+            authenticate(&req)?;
+            // Non-makers need the maker's signed approval (for them, or "*" = anyone with funds).
+            let mut opening = None;
+            for ct in &input.offers { let (_, o, _) = offer(ct)?; if o.to == "*" { opening = Some(o); break; } }
+            let open_o = opening.ok_or("opening offer missing")?;
+            if open_o.deal != req.deal { return Err("offer belongs to another deal".into()); }
+            if open_o.from != req.account {
+                let who = nearauth::approval(input.approval.as_ref().ok_or("the maker has not approved you yet")?, &req.deal, &open_o.from)?;
+                if who == "*" { if !funded(&open_o, &req.account)? { return Err("insufficient funds".into()); } }
+                else if who != req.account { return Err("approval is for someone else".into()); }
+            }
             let mut seen = vec![];
             for ct in &input.offers {
                 let (commit, o, dl) = offer(ct)?;
@@ -157,6 +180,24 @@ fn run(input: Input) -> Result<Value, String> {
                 }
             }
             Ok(json!({ "deal": req.deal, "viewer": req.account, "offers_ct": seal_to(&req.eph_pub, Value::Array(seen.clone()).to_string().as_bytes())?, "visible": seen.len() }))
+        }
+        "request" => {
+            // Proof of funds, checked here so the keeper never learns the amount. Output is yes/no only.
+            let (_, rplain) = open(input.request.as_deref().ok_or("request")?)?;
+            let req: RevealReq = serde_json::from_slice(&rplain).map_err(|e| format!("request json: {e}"))?;
+            authenticate(&req)?;
+            let (_, o, _) = offer(input.offers.first().ok_or("offers[0]")?)?;
+            if o.to != "*" || o.deal != req.deal { return Err("not this deal's opening offer".into()); }
+            if o.from == req.account { return Err("this is your own deal".into()); }
+            let (want, _) = token(&o.terms.buy_token)?;
+            Ok(json!({ "deal": req.deal, "viewer": req.account, "funded": funded(&o, &req.account)?, "want": want }))
+        }
+        "approval" => {
+            // Validate a maker approval (so the keeper can't store a forged one). Output: requester only.
+            let (_, o, _) = offer(input.offers.first().ok_or("offers[0]")?)?;
+            if o.to != "*" { return Err("not an opening offer".into()); }
+            let who = nearauth::approval(input.approval.as_ref().ok_or("approval")?, &o.deal, &o.from)?;
+            Ok(json!({ "deal": o.deal, "maker": o.from, "requester": who }))
         }
         "settle" => {
             if input.offers.len() != 2 { return Err("settle needs two offers".into()); }
