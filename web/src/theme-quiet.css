@@ -112,3 +112,25 @@ html[data-theme="dark"] .empty, html[data-theme="dark"] .empty h3 { color: var(-
 html[data-theme="dark"] .icon-chip { background: var(--gold-wash) !important; color: var(--brand) !important; }
 .landing .nav { position: fixed; }
 .warn-note { font-size: 13.5px; padding: 10px 14px; border-radius: 14px; background: var(--gold-wash); color: var(--text); box-shadow: inset 0 0 0 1px rgba(166,95,12,.25); margin: 0 0 12px; }
+/* New deal: swap-style rows */
+.create-grid { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 380px); gap: 20px; align-items: start; }
+.create-side { display: grid; gap: 14px; }
+.swap-row { padding: 16px 18px; border-radius: 20px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--border); }
+.sr-top { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; font-weight: 500; color: var(--muted); margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+.sr-bal { border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--brand); cursor: pointer; padding: 0; }
+.sr-main { display: flex; align-items: center; gap: 12px; }
+.sr-amt { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font-size: 30px; font-weight: 600; outline: none; padding: 4px 0; }
+.sr-amt::placeholder { color: var(--faint, #a8a49c); }
+.sr-tok { width: 140px; flex: none; }
+.sr-hint { margin: 10px 0 0 !important; font-size: 13px; }
+.swap-mid { display: flex; justify-content: center; margin: -10px 0; position: relative; z-index: 1; }
+.swap-flip { width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; background: var(--card-grad); color: var(--text); box-shadow: var(--card-shadow), 0 0 0 4px var(--bg); }
+.exp-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.exp-chips button { border: 0; cursor: pointer; font: inherit; font-size: 14px; padding: 9px 14px; border-radius: 999px; background: var(--soft-2); color: var(--text); }
+.exp-chips button.on { background: var(--btn-dark); color: #fff; }
+html[data-theme="dark"] .exp-chips button.on { color: #1d1b18; }
+.summary .sum-line { font-size: 16px; line-height: 1.5; color: var(--text) !important; margin: 0 0 12px; }
+.sum-pub { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; padding: 12px 14px; border-radius: 14px; background: var(--gold-wash); color: var(--text); }
+.sum-pub svg { flex: none; margin-top: 2px; color: var(--brand); }
+@media (max-width: 980px) { .create-grid { grid-template-columns: minmax(0, 600px); } }
+@media (max-width: 480px) { .sr-amt { font-size: 24px; } .sr-tok { width: 120px; } }

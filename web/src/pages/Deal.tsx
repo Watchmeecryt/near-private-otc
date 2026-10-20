@@ -82,7 +82,7 @@ export default function Deal() {
           <Steps at={step} />
           <dl className="kv-mini" style={{ marginTop: 12 }}>
             <dt>Status</dt><dd><StatusChip s={my?.my_status || d.status} /></dd>
-            <dt>Size band</dt><dd className="mono">{d.band}</dd>
+            <dt>Rough amount</dt><dd className="mono">{d.band}</dd>
             <dt>Expires</dt><dd>{deadlineMs > now ? countdown(deadlineMs - now) : "ended"}</dd>
             {isMaker && <><dt>Requests</dt><dd>{my?.requesters ?? 0} taker(s) viewed terms</dd></>}
             <dt>On chain</dt><dd><Tx hash={d.check_tx} label="sealed" /> {d.settle_tx && <Tx hash={d.settle_tx} label="settled" />}</dd>

@@ -14,7 +14,7 @@ export default function Board() {
   const list = (deals || []).filter((d) => show === "all" || d.status === "Open");
   return (
     <>
-      <Top title="Deal board" sub="Open OTC deals. Only coarse facts are public; exact size and price stay sealed until you request them.">
+      <Top title="Deal board" sub="Open OTC deals. Anyone can see what is on offer. Exact amounts stay private until you open a deal.">
         <Link to="/app/new" className="btn btn-dark btn-sm"><Plus size={15} weight="bold" /> New deal</Link>
       </Top>
       <div className="seg" style={{ marginBottom: 14 }}>
