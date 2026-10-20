@@ -1,0 +1,28 @@
+/* Quiet Cover palette (TokenOps warm system): cream page, gold accent, dark metal buttons, glossy cards. */
+:root {
+  --bg: #f7f5f1; --bg-subtle: #efece7; --text: #1d1b18; --text-2: #3a3733; --muted: #696660; --border: #e9e6e2;
+  --brand: #a65f0c; --brand-deep: #b8691a; --gold: #ffad24; --gold-soft: #ffd078; --gold-wash: #fff1d6; --cream: #fdf6e6;
+  --grad-warm: linear-gradient(70deg, #ffad24 7%, #ffdea0 48%, #ebe7e1 93%);
+  --btn-dark: linear-gradient(180deg, #3f3933 0%, #211d19 100%);
+  --ok: #17633f; --ok-wash: #e3f5ec; --bad: #b4383c; --bad-wash: #fde8e8;
+  --mu-orange: #ffad24; --mu-gold: #ffad24; --mu-green: #7fd1a6; --mu-red: #f2777b; --mu-focus: #a65f0c;
+  --mu-primary-bg: linear-gradient(#3f3933, #211d19); --mu-primary-pressed-bg: linear-gradient(#211d19, #3f3933);
+}
+[data-theme="dark"] { --brand: #ffc052; --gold-wash: rgba(255,173,36,.14); --cream: #24201a; }
+::selection { background: var(--gold-soft); }
+.btn-dark, .btn-primary { background: var(--btn-dark) !important; color: #fff !important; }
+.logo-mark { background: var(--grad-warm) !important; color: #1d1b18 !important; }
+.side-link.active { color: var(--text) !important; background: var(--gold-wash) !important; }
+.side-link.active svg { color: var(--brand); }
+.chip-blue { background: var(--gold-wash) !important; color: var(--brand) !important; }
+.link { color: var(--brand); }
+/* hero */
+.hero { background: var(--grad-warm) !important; color: var(--text) !important; padding: 132px 0 84px !important; }
+.hero::before { background: radial-gradient(60% 60% at 80% 0%, rgba(255,255,255,.55), transparent 70%) !important; }
+.hero::after { display: none; }
+.hero h1 { color: var(--text) !important; }
+.hero-sub, .hero-trust { color: var(--text-2) !important; }
+.hero .chip { background: rgba(255,255,255,.55) !important; color: var(--text) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.8) !important; }
+.btn-white { background: var(--btn-dark) !important; color: #fff !important; }
+.btn-glass { background: rgba(255,255,255,.6) !important; color: var(--text) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.9), 0 4px 12px -4px rgba(0,0,0,.12) !important; backdrop-filter: blur(10px); }
+.nav .btn-dark { background: var(--btn-dark) !important; }

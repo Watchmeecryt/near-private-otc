@@ -1,0 +1,91 @@
+/* Design language: warm neutrals, Geist type scale, glossy raised cards and metal pill buttons
+   (Metal UI "raise" + "primary" recipes), frosted glass for chrome. Light and dark. */
+:root {
+  --bg: #f7f5f1; --bg-subtle: #f1eee9; --surface: #ece9e3; --surface-alt: #f3f1ec; --surface-2: #e9e6e0;
+  --border: #e6e2db; --border-alt: #dcd7cf; --hairline: #ebe7e1;
+  --text: #1d1b18; --text-2: #3a3733; --muted: #6c6862; --warm: #8a6a3e;
+  --font-display: "Geist", system-ui, sans-serif; --font-body: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --card-grad: linear-gradient(180deg, #fcfbf9 0%, #f6f5f2 55%, #f0efeb 100%);
+  --card-shadow: inset 0 0 6px 2px rgba(255,255,255,.75), inset 2px 3px 3px -1px rgba(255,255,255,.95), inset -1px -3px 5px -2px rgba(110,100,80,.07),
+    0 0 0 .5px rgba(24,22,16,.043), 0 1px 2px rgba(24,22,16,.05), 0 8px 18px -6px rgba(24,22,16,.08), 0 26px 50px -16px rgba(24,22,16,.13), 0 52px 96px -36px rgba(24,22,16,.13);
+  --btn-primary: linear-gradient(180deg, #38383c, #252528);
+  --btn-primary-ink: #fff;
+  --btn-primary-shadow: inset 0 0 5px 1px rgba(255,255,255,.07), inset 1px 2px 2px -1px rgba(255,255,255,.18), 0 0 0 .5px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.15), 0 5px 12px -4px rgba(0,0,0,.22);
+  --btn-std: linear-gradient(180deg, #ffffff, #f4f3f0);
+  --btn-std-ink: #1b1b1d;
+  --btn-std-shadow: inset 0 0 4px 1px rgba(255,255,255,.9), inset 1px 2px 2px -1px #fff, 0 0 0 .5px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.06), 0 4px 9px -3px rgba(0,0,0,.08);
+  --glass: rgba(252,251,249,.72); --glass-line: rgba(255,255,255,.7);
+  --inset-field: linear-gradient(180deg, #f4f2ee, #fbfaf8);
+  --mu-page: #f7f5f1; --mu-sans: "Geist", system-ui, sans-serif; --mu-radius-card: 24px; --mu-radius-pill: 999px; --mu-radius-plate: 16px;
+}
+[data-theme="dark"] {
+  --bg: #121110; --bg-subtle: #171615; --surface: #201e1c; --surface-alt: #1c1a18; --surface-2: #262321;
+  --border: #2c2926; --border-alt: #36322e; --hairline: #2a2725;
+  --text: #f1eee9; --text-2: #cfcac3; --muted: #948e86;
+  --card-grad: linear-gradient(180deg, #24221f 0%, #1d1b19 60%, #191715 100%);
+  --card-shadow: inset 0 1px 0 rgba(255,255,255,.06), inset 0 0 0 .5px rgba(255,255,255,.05), 0 0 0 .5px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.4), 0 10px 24px -8px rgba(0,0,0,.5), 0 30px 60px -20px rgba(0,0,0,.55);
+  --btn-primary: linear-gradient(180deg, #fbfaf8, #e6e3de);
+  --btn-primary-ink: #1d1b18;
+  --btn-primary-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -1px 2px rgba(0,0,0,.08), 0 0 0 .5px rgba(0,0,0,.6), 0 6px 14px -6px rgba(0,0,0,.6);
+  --btn-std: linear-gradient(180deg, #2c2a27, #232120);
+  --btn-std-ink: #f1eee9;
+  --btn-std-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 0 0 .5px rgba(0,0,0,.7), 0 1px 2px rgba(0,0,0,.4), 0 4px 10px -4px rgba(0,0,0,.5);
+  --glass: rgba(26,24,22,.66); --glass-line: rgba(255,255,255,.06);
+  --inset-field: linear-gradient(180deg, #191716, #1e1c1a);
+}
+body { font-family: var(--font-body); font-feature-settings: normal; letter-spacing: -0.005em; background: var(--bg); }
+
+/* Type scale */
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.02em; }
+.topbar h1 { font-size: 40px; line-height: 1.12; letter-spacing: -0.025em; }
+.topbar p { font-size: 15px; }
+.panel h2 { font-size: 22px; line-height: 1.2; letter-spacing: -0.02em; }
+.section h2, .heading h2 { font-size: clamp(32px, 4vw, 44px); line-height: 1.1; letter-spacing: -0.025em; }
+.hero h1 { font-weight: 500; letter-spacing: -0.03em; line-height: 1.04; }
+.card h3 { font-size: 22px; line-height: 1.2; }
+
+/* Glossy raised cards */
+.card, .acct-card { background: var(--card-grad); border: 0; border-radius: 24px; box-shadow: var(--card-shadow); }
+.acct-card { border-radius: 20px; }
+.acct-row { background: var(--inset-field); box-shadow: inset 0 0 0 .5px var(--border); }
+.review { border: 0; background: var(--inset-field); box-shadow: inset 0 0 0 .5px var(--border); }
+.review > div { border-top-color: var(--hairline); }
+.file-row { background: var(--btn-std); border: 0; box-shadow: var(--btn-std-shadow); }
+.banner { background: var(--inset-field); box-shadow: inset 0 0 0 .5px var(--border); border-radius: 16px; }
+.banner.warn { background: color-mix(in srgb, #ffad24 12%, var(--surface-alt)); }
+.drop { background: var(--inset-field); border-color: var(--border-alt); border-radius: 20px; }
+
+/* Metal pill buttons */
+.btn { border-radius: 999px; font-weight: 500; letter-spacing: -0.005em; }
+.btn-dark, .btn-pill, .btn-brand, .btn-primary { background: var(--btn-primary); color: var(--btn-primary-ink); box-shadow: var(--btn-primary-shadow); }
+.btn-dark:hover:not(:disabled), .btn-pill:hover:not(:disabled), .btn-brand:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--btn-primary-shadow), 0 10px 22px -10px rgba(0,0,0,.45); }
+.btn-dark:active:not(:disabled), .btn-pill:active:not(:disabled), .btn-brand:active:not(:disabled) { transform: translateY(1px); filter: brightness(.96); }
+.btn-pill:disabled, .btn-dark:disabled { opacity: .45; background: var(--btn-primary); color: var(--btn-primary-ink); }
+.btn-ghost { background: var(--btn-std); color: var(--btn-std-ink); box-shadow: var(--btn-std-shadow); }
+.btn-ghost:hover:not(:disabled) { background: var(--btn-std); transform: translateY(-1px); }
+.icon-btn { border: 0; border-radius: 999px; background: var(--btn-std); color: var(--btn-std-ink); box-shadow: var(--btn-std-shadow); }
+.icon-btn:hover { background: var(--btn-std); filter: brightness(.98); }
+.seg { background: var(--inset-field); box-shadow: inset 0 0 0 .5px var(--border); }
+.seg button.on { background: var(--btn-std); box-shadow: var(--btn-std-shadow); color: var(--btn-std-ink); }
+
+/* Inputs: recessed */
+.input, .textarea, .select { background: var(--inset-field); border: 0; box-shadow: inset 0 0 0 .5px var(--border-alt), inset 0 1px 2px rgba(0,0,0,.04); border-radius: 14px; }
+.input:focus, .textarea:focus, .select:focus { box-shadow: inset 0 0 0 1px var(--brand), 0 0 0 4px color-mix(in srgb, var(--brand) 14%, transparent); }
+
+/* Frosted chrome */
+.side { background: var(--glass); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); border-right: 0; box-shadow: inset -0.5px 0 0 var(--border); }
+.side-link { border-radius: 999px; }
+.side-link.active { background: var(--btn-std); color: var(--text); box-shadow: var(--btn-std-shadow); }
+.side-link.active svg { color: var(--brand); }
+@media (max-width: 760px) { .bottom-nav { background: var(--glass) !important; backdrop-filter: blur(20px) saturate(1.2); -webkit-backdrop-filter: blur(20px) saturate(1.2); box-shadow: var(--card-shadow); border: 0 !important; border-radius: 26px !important; } }
+.nav { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+
+/* Chips and stepper */
+.chip { background: var(--btn-std); box-shadow: var(--btn-std-shadow); }
+.stepper .circ { background: var(--btn-std); box-shadow: var(--btn-std-shadow); }
+.stepper li.current .circ { color: var(--brand); box-shadow: var(--btn-std-shadow), 0 0 0 2px var(--brand), 0 0 0 7px color-mix(in srgb, var(--brand) 14%, transparent); }
+.stepper li.done .circ { background: var(--btn-primary); color: var(--btn-primary-ink); box-shadow: var(--btn-primary-shadow); }
+.stepper li.done::before { background: var(--text); }
+.panel-kicker .kbar { background: var(--surface); }
+.ev-ic { border-radius: 999px; background: var(--btn-std); box-shadow: var(--btn-std-shadow); }
+.heir-chip { background: var(--btn-std); box-shadow: var(--btn-std-shadow); }

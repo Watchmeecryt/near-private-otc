@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>NEAR Private OTC: private OTC deals on NEAR, settled with NEAR Intents</title>
+    <meta name="description" content="Private OTC deal board on NEAR. Post a deal with sealed size and price, find a counterparty, negotiate privately, and settle both sides atomically with NEAR Intents (execute_intents). Terms are sealed to an OutLayer TEE; only the two parties ever see them." />
+    <meta name="keywords" content="NEAR, NEAR Intents, OTC, private deals, RFQ, dark pool, token_diff, execute_intents, NEP-413, TEE, OutLayer, Privy, testnet" />
+    <meta name="theme-color" content="#a65f0c" />
+    <link rel="canonical" href="https://near-private-otc-production.up.railway.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NEAR Private OTC" />
+    <meta property="og:title" content="Private OTC: find your counterparty, keep your price" />
+    <meta property="og:description" content="Private OTC deal board on NEAR. Post a deal with sealed size and price, find a counterparty, negotiate privately, and settle both sides atomically with NEAR Intents (execute_intents). Terms are sealed to an OutLayer TEE; only the two parties ever see them." />
+    <meta property="og:url" content="https://near-private-otc-production.up.railway.app/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Private OTC: private OTC deals on NEAR" />
+    <meta name="twitter:description" content="Private OTC deal board on NEAR. Post a deal with sealed size and price, find a counterparty, negotiate privately, and settle both sides atomically with NEAR Intents (execute_intents). Terms are sealed to an OutLayer TEE; only the two parties ever see them." />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"SoftwareApplication","name":"NEAR Private OTC","applicationCategory":"FinanceApplication","operatingSystem":"Web","url":"https://near-private-otc-production.up.railway.app/","description":"Private OTC deal board on NEAR. Post a deal with sealed size and price, find a counterparty, negotiate privately, and settle both sides atomically with NEAR Intents (execute_intents). Terms are sealed to an OutLayer TEE; only the two parties ever see them.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"featureList":["Public deal board with coarse info only (pair, side, size band, expiry)","Exact terms sealed to an OutLayer TEE enclave","Reveal to signed-in takers only","Private counter-offers (Accept / Counter / Decline)","Atomic settlement via NEAR Intents token_diff + execute_intents","Expiry via intent deadline, cancel via nonce burn","Privy email/Google sign-in with NEAR implicit accounts","Faucet for test tokens, deposit/withdraw panel","Relayer-paid gas"]}
+    </script>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/OpenRunde-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <script>
+      document.documentElement.dataset.theme = "light"; try { if (localStorage.getItem("otc-theme-choice") === "dark") document.documentElement.dataset.theme = "dark"; } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <h1>NEAR Private OTC</h1>
+      <p>A private OTC deal board on NEAR testnet. Makers post deals whose exact size and price are sealed to an OutLayer TEE enclave; the public board shows only pair, side, size band and expiry. Signed-in takers request terms, counter privately, and matching NEP-413 signed token_diff intents settle atomically through execute_intents on the verifier otcdesk-intents.testnet. See /llms.txt. This app needs JavaScript.</p>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

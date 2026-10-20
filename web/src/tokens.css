@@ -1,0 +1,28 @@
+/* Extracted from trezu.org (see design-tokens.json) */
+:root{
+  --brand:#0953ff;--brand-deep:#156cc2;--brand-soft:#84b9ef;--brand-mist:#9cc1e7;--tint-blue:#cfe8ff;--tint-ice:#e2ecf5;
+  --bg:#ffffff;--bg-subtle:#f9f8f8;--surface:#edeff0;--surface-alt:#f5f5f5;--surface-2:#f0f0f0;
+  --border:#e4e2e2;--border-alt:#dedede;--hairline:#e6e6e6;
+  --text:#1a1615;--text-2:#453f3d;--muted:#757170;--warm:#614a44;
+  --success:#0ea158;--warning:#cf8d13;--danger:#c9502e;--link:#0099ff;
+  --font-display:"Geist",Inter,system-ui,sans-serif;--font-body:"Open Runde",Inter,system-ui,sans-serif;--font-mono:"Fragment Mono",ui-monospace,monospace;
+  --fs-12:12px;--fs-14:14px;--fs-16:16px;--fs-18:18px;--fs-20:20px;--fs-24:24px;--fs-28:28px;--fs-32:32px;--fs-40:40px;--fs-44:44px;--fs-76:76px;
+  --ls-display:-0.03em;--ls-eyebrow:0.02em;--lh-body:1.5;--lh-head:1.2;
+  --r-sm:8px;--r-card:24px;--r-lg:30px;--r-xl:32px;--r-panel:36px;--r-hero:40px;--r-pill:50px;
+  --shadow-card:0 4px 50px 0 rgba(97,74,68,.10);--shadow-soft:0 4px 50px #614a440f;
+  --ease:cubic-bezier(.44,0,.56,1);--dur:.45s;--section-y:120px;--gutter:24px;
+}
+[data-theme="dark"]{
+  --bg:#0e0c0b;--bg-subtle:#141110;--surface:#1a1615;--surface-alt:#1f1a19;--surface-2:#231e1d;
+  --border:#2e2826;--border-alt:#383130;--hairline:#2a2423;
+  --text:#edeff0;--text-2:#c9c5c3;--muted:#8e8987;--brand:#3b76ff;--tint-blue:#0f2a5c;--tint-ice:#16202c;
+  --shadow-card:0 4px 50px 0 rgba(0,0,0,.45);
+}
+body{font-family:var(--font-body);font-feature-settings:"blwf","cv03","cv04","cv09","cv11";color:var(--text);background:var(--bg);line-height:var(--lh-body)}
+h1,h2,h3{font-family:var(--font-display);letter-spacing:var(--ls-display);line-height:var(--lh-head);font-weight:500}
+.btn{border-radius:var(--r-pill);padding:14px 22px;font-weight:600;transition:transform var(--dur) var(--ease),background var(--dur) var(--ease)}
+.btn-primary{background:var(--text);color:var(--bg)}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-card);box-shadow:var(--shadow-card)}
+@keyframes word-in{from{opacity:.001;filter:blur(10px);transform:translateY(10px)}to{opacity:1;filter:none;transform:none}}
+.reveal-word{display:inline-block;animation:word-in .7s var(--ease) both}
+@media (prefers-reduced-motion:reduce){.reveal-word{animation:none}}

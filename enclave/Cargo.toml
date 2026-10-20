@@ -1,0 +1,33 @@
+[package]
+name = "private-otc-enclave"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Private OTC deal desk: holds sealed OTC terms inside an OutLayer TDX worker; reveals them only to signed-in parties and releases signed intents only as an exact match."
+
+[[bin]]
+name = "private-otc-enclave"
+path = "src/main.rs"
+
+[features]
+default = ["wasi"]
+wasi = ["wasi-http-client"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+
+hkdf = "0.12"
+hex = "0.4"
+base64 = "0.22"
+p256 = { version = "0.13", default-features = false, features = ["ecdsa", "std"] }
+ecies = { version = "0.2", default-features = false, features = ["pure", "std"] }
+libsecp256k1 = "0.7"
+wasi-http-client = { version = "0.2", optional = true }
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1

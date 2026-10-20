@@ -1,0 +1,207 @@
+// Private OTC keeper: deal-board read model, OutLayer enclave relay, NEAR Intents relayer (execute_intents),
+// faucet, implicit-account funding, RPC proxy, and the web app. It stores only sealed offer blobs plus the
+// coarse facts the enclave chose to publish; it never holds the enclave key, so it cannot read terms.
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { account, call, view, lastValue } from "./chain.mjs";
+import { enclave } from "./enclave.mjs";
+import { fund, privyNearAccounts } from "./fund.mjs";
+import { VERIFIER, TOKENS, tokenById, toUnits, base58, randomBytes } from "../shared/otc.mjs";
+
+const RPC_UPSTREAMS = (process.env.RPC_UPSTREAMS || "https://test.rpc.fastnear.com,https://neart.lava.build,https://rpc.testnet.pagoda.co").split(",");
+const PORT = Number(process.env.PORT || 8790);
+const HOST = process.env.PORT ? "0.0.0.0" : "127.0.0.1";
+const WEB = path.resolve(new URL("../web/dist", import.meta.url).pathname);
+const DATA = process.env.DATA_DIR || path.resolve(new URL("../.data", import.meta.url).pathname);
+fs.mkdirSync(DATA, { recursive: true });
+const DB = path.join(DATA, "private-otc.json");
+const KEEPER_ID = process.env.KEEPER_ID || "otcdesk.testnet";
+const keeper = process.env.KEEPER_KEY ? await account(KEEPER_ID, process.env.KEEPER_KEY) : null;
+const log = (...a) => console.log(new Date().toISOString(), ...a);
+
+// ---- store ----
+const db = fs.existsSync(DB) ? JSON.parse(fs.readFileSync(DB, "utf8")) : { deals: {}, faucet: {} };
+let saving = null;
+const save = () => { clearTimeout(saving); saving = setTimeout(() => fs.writeFileSync(DB + ".tmp", JSON.stringify(db)) || fs.renameSync(DB + ".tmp", DB), 50); };
+const expired = (d) => Date.parse(d.coarse.deadline) < Date.now();
+const publicStatus = (d) => d.status === "Settled" || d.status === "Cancelled" ? d.status : expired(d) ? "Expired" : "Open";
+const publicDeal = (d) => ({ id: d.id, ...d.coarse, from: undefined, to: undefined, commitment: undefined, status: publicStatus(d), created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
+/** Status as seen by one account. */
+function myStatus(d, me) {
+  const p = publicStatus(d); if (p !== "Open") return p;
+  const mine = d.offers.filter((o) => o.from === me || o.to === me);
+  if (mine.some((o) => o.kind === "counter" && o.status === "live")) return "Countered";
+  if (d.maker === me ? d.requesters.length : d.requesters.includes(me)) return "Requested";
+  return "Open";
+}
+const thread = (d, me) => d.offers.filter((o) => d.maker === me || o.to === "*" || o.from === me || o.to === me).map(({ ct, ...o }) => o);
+
+// ---- http helpers ----
+const hits = new Map();
+const clientIp = (req) => String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress;
+function limited(req, max = 30, bucket = new URL(req.url, "http://x").pathname) {
+  const k = `${bucket}|${clientIp(req)}`, now = Date.now(), w = hits.get(k)?.filter((t) => now - t < 60000) || [];
+  w.push(now); hits.set(k, w); return w.length > max;
+}
+setInterval(() => { const now = Date.now(); for (const [k, w] of hits) if (!w.some((t) => now - t < 60000)) hits.delete(k); }, 300000).unref();
+const body = (req, max = 64 * 1024) => new Promise((res, rej) => { const c = []; let n = 0; req.on("data", (d) => { n += d.length; if (n > max) { rej(new Error("too large")); req.destroy(); } else c.push(d); }); req.on("end", () => res(Buffer.concat(c))); req.on("error", rej); });
+const jbody = async (req) => JSON.parse((await body(req)).toString() || "{}");
+const json = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
+const TYPES = { ".js": "text/javascript", ".css": "text/css", ".html": "text/html; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json", ".txt": "text/plain; charset=utf-8", ".md": "text/markdown; charset=utf-8", ".xml": "application/xml" };
+const bearerOf = (req) => (req.headers.authorization || "").replace(/^Bearer /, "");
+class HttpError extends Error { constructor(code, msg) { super(msg); this.code = code; } }
+const authCache = new Map();
+async function who(req, want) {
+  const b = bearerOf(req);
+  let r = authCache.get(b);
+  if (!r || r.exp < Date.now()) { r = { v: await privyNearAccounts(b), exp: Date.now() + 120000 }; if (r.v) authCache.set(b, r); }
+  if (!r.v) throw new HttpError(401, "Please sign in again.");
+  if (want && !r.v.accounts.includes(want)) throw new HttpError(403, "That NEAR account is not linked to this sign-in.");
+  return r.v;
+}
+const getDeal = (id) => { const d = db.deals[id]; if (!d) throw new HttpError(404, "Deal not found"); return d; };
+const shortId = () => base58(randomBytes(6)).slice(0, 8);
+
+// ---- relayer ----
+async function simulate(signed) { return view(VERIFIER, "simulate_intents", { signed }); }
+async function execute(signed) {
+  await simulate(signed).catch((e) => { throw new HttpError(409, "Verifier refused: " + String(e.message).replace(/\\"/g, '"').slice(0, 260)); });
+  const o = await call(keeper, VERIFIER, "execute_intents", { signed }, { tgas: 300 });
+  lastValue(o); return o.transaction.hash;
+}
+const msgOf = (p) => JSON.parse(p.payload.message);
+
+// ---- faucet ----
+const near = (n) => BigInt(Math.round(n * 1e6)) * 10n ** 18n;
+async function faucet(accountId, symbol) {
+  const t = tokenById(symbol); if (!t) throw new HttpError(400, "Unknown token");
+  const amount = toUnits(t.faucet, t.decimals);
+  if (t.contract === "wrap.testnet") await call(keeper, "wrap.testnet", "near_deposit", {}, { tgas: 30, deposit: amount });
+  const o = await call(keeper, t.contract, "ft_transfer_call", { receiver_id: VERIFIER, amount, msg: accountId }, { tgas: 100, deposit: "1" });
+  lastValue(o); return { tx: o.transaction.hash, amount, token: t.id };
+}
+
+const routes = [
+  ["GET", /^\/api\/health$/, async () => ({ ok: true, keeper: KEEPER_ID, verifier: VERIFIER, deals: Object.keys(db.deals).length, relayer: !!keeper })],
+  ["GET", /^\/api\/deals$/, async () => Object.values(db.deals).sort((a, b) => b.created - a.created).map(publicDeal)],
+  ["GET", /^\/api\/deals\/([\w]+)$/, async (req, [id]) => publicDeal(getDeal(id))],
+  ["GET", /^\/api\/my$/, async (req, _, url) => {
+    const me = url.searchParams.get("account"); await who(req, me);
+    return Object.values(db.deals).filter((d) => d.maker === me || d.requesters.includes(me) || d.offers.some((o) => o.from === me || o.to === me))
+      .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined }));
+  }],
+  ["POST", /^\/api\/deals$/, async (req) => {
+    const { offer_ct, nonce, account: me } = await jbody(req); await who(req, me);
+    const c = await enclave(keeper, { action: "check", offers: [offer_ct] });
+    if (c.from !== me || c.to !== "*") throw new HttpError(400, "Opening offers must be signed by you and open to anyone.");
+    if (db.deals[c.deal]) throw new HttpError(409, "Deal id taken, try again.");
+    const d = { id: c.deal, created: Date.now(), maker: me, status: "Open", requesters: [], check_tx: c.tx,
+      coarse: { pair: c.pair, side: c.side, band: c.band, deadline: c.deadline },
+      offers: [{ id: "o1", kind: "open", from: me, to: "*", nonce, at: Date.now(), status: "live", ct: offer_ct, commitment: c.commitment, tx: c.tx }] };
+    db.deals[d.id] = d; save(); log("deal", d.id, c.pair, c.band);
+    return publicDeal(d);
+  }],
+  ["POST", /^\/api\/deals\/(\w+)\/reveal$/, async (req, [id]) => {
+    const d = getDeal(id); const { request_ct, account: me } = await jbody(req); await who(req, me);
+    const r = await enclave(keeper, { action: "reveal", request: request_ct, offers: d.offers.map((o) => o.ct) });
+    if (r.viewer !== me || r.deal !== id) throw new HttpError(400, "Request mismatch");
+    if (me !== d.maker && !d.requesters.includes(me)) { d.requesters.push(me); save(); }
+    return { offers_ct: r.offers_ct, visible: r.visible, tx: r.tx, offers: thread(d, me) };
+  }],
+  ["POST", /^\/api\/deals\/(\w+)\/offer$/, async (req, [id]) => {
+    const d = getDeal(id); const { offer_ct, nonce, account: me, kind, reply_to } = await jbody(req); await who(req, me);
+    if (publicStatus(d) !== "Open") throw new HttpError(409, `This deal is ${publicStatus(d).toLowerCase()}.`);
+    const prev = d.offers.find((o) => o.id === reply_to && o.status === "live");
+    if (!prev) throw new HttpError(404, "That offer is no longer live.");
+    const c = await enclave(keeper, { action: "check", offers: [offer_ct] });
+    if (c.from !== me || c.deal !== id || (prev.to !== "*" && prev.to !== me) || c.to !== prev.from) throw new HttpError(400, "Offer is not addressed correctly.");
+    const o = { id: "o" + (d.offers.length + 1), kind: kind === "accept" ? "accept" : "counter", reply_to, from: me, to: prev.from, nonce, at: Date.now(), status: "live", ct: offer_ct, commitment: c.commitment, tx: c.tx };
+    if (o.kind === "counter") {
+      d.offers.forEach((x) => { if (x.kind === "counter" && x.status === "live" && ((x.from === me && x.to === prev.from) || x.id === reply_to)) x.status = "superseded"; });
+      d.offers.push(o); save(); return { offer: (({ ct, ...x }) => x)(o) };
+    }
+    const s = await enclave(keeper, { action: "settle", offers: [prev.ct, offer_ct] });
+    const tx = await execute(s.signed);
+    o.status = "settled"; prev.status = "settled"; d.offers.push(o);
+    d.status = "Settled"; d.settle_tx = tx; d.settle_enclave_tx = s.tx; save(); log("settled", id, tx);
+    return { settled: true, tx, enclave_tx: s.tx };
+  }],
+  ["POST", /^\/api\/deals\/(\w+)\/decline$/, async (req, [id]) => {
+    const d = getDeal(id); const { offer_id, account: me } = await jbody(req); await who(req, me);
+    const o = d.offers.find((x) => x.id === offer_id);
+    if (!o || o.to !== me || o.status !== "live" || o.kind !== "counter") throw new HttpError(400, "Nothing to decline.");
+    o.status = "declined"; save(); return { ok: true };
+  }],
+  ["POST", /^\/api\/deals\/(\w+)\/cancel$/, async (req, [id]) => {
+    // Cancel = burn the maker's nonces: each payload re-uses one of the maker's offer nonces with an
+    // empty intents list, so the verifier marks those nonces used and the old signatures die.
+    const d = getDeal(id); const { signed, account: me } = await jbody(req); await who(req, me);
+    if (d.maker !== me) throw new HttpError(403, "Only the maker can cancel.");
+    if (publicStatus(d) !== "Open") throw new HttpError(409, "Deal is not open.");
+    const mine = new Set(d.offers.filter((o) => o.from === me && o.status === "live").map((o) => o.nonce));
+    for (const p of signed || []) { const m = msgOf(p); if (m.signer_id !== me || m.intents.length || !mine.has(p.payload.nonce)) throw new HttpError(400, "Cancel payloads must be empty and re-use your offer nonces."); }
+    const tx = await execute(signed);
+    d.status = "Cancelled"; d.cancel_tx = tx; d.offers.forEach((o) => { if (o.status === "live") o.status = "cancelled"; }); save();
+    return { tx };
+  }],
+  ["POST", /^\/api\/withdraw$/, async (req) => {
+    const { signed, account: me } = await jbody(req); await who(req, me);
+    const m = msgOf(signed);
+    if (m.signer_id !== me || !m.intents.length || m.intents.some((i) => i.intent !== "ft_withdraw")) throw new HttpError(400, "Only ft_withdraw intents signed by you.");
+    return { tx: await execute([signed]) };
+  }],
+  ["POST", /^\/api\/faucet$/, async (req) => {
+    if (limited(req, 6)) throw new HttpError(429, "Slow down.");
+    const { account: me, token } = await jbody(req); const { sub } = await who(req, me);
+    const day = new Date().toISOString().slice(0, 10), k = `${day}|${sub}|${token}`;
+    if ((db.faucet[k] || 0) >= 3) throw new HttpError(429, "Faucet limit for today reached for this token.");
+    const r = await faucet(me, token); db.faucet[k] = (db.faucet[k] || 0) + 1; save();
+    for (const key of Object.keys(db.faucet)) if (!key.startsWith(day)) delete db.faucet[key];
+    return r;
+  }],
+  ["POST", /^\/api\/fund$/, async (req) => {
+    if (limited(req, 5)) throw new HttpError(429, "Slow down.");
+    const { account: a } = await jbody(req); const r = await fund(keeper, bearerOf(req), a);
+    if (r.code !== 200) throw new HttpError(r.code, r.error); return r;
+  }],
+];
+
+http.createServer(async (req, res) => {
+  const url = new URL(req.url, "http://x");
+  try {
+    if (url.pathname === "/api/rpc" && req.method === "POST") {
+      if (limited(req, 240)) return json(res, 429, { error: "slow down" });
+      const raw = (await body(req, 256 * 1024)).toString();
+      let m; try { m = JSON.parse(raw).method; } catch { return json(res, 400, { error: "bad json" }); }
+      if (!["query", "block", "send_tx", "broadcast_tx_commit", "tx", "status", "gas_price"].includes(m)) return json(res, 400, { error: "method not allowed" });
+      let lastErr = "no upstream";
+      for (const up of RPC_UPSTREAMS) {
+        try {
+          const r = await fetch(up, { method: "POST", headers: { "content-type": "application/json" }, body: raw, signal: AbortSignal.timeout(m.startsWith("send") || m.startsWith("broadcast") ? 60000 : 12000) });
+          if (r.status === 429 || r.status >= 500) { lastErr = `${up} ${r.status}`; continue; }
+          res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }); return res.end(await r.text());
+        } catch (e) { lastErr = `${up} ${e.message}`; }
+      }
+      return json(res, 502, { jsonrpc: "2.0", id: 1, error: { message: "NEAR RPC unavailable", cause: { name: lastErr.slice(0, 120) } } });
+    }
+    for (const [method, re, fn] of routes) {
+      const m = url.pathname.match(re);
+      if (m && req.method === method) {
+        if (method === "POST" && !keeper && !/fund/.test(url.pathname)) throw new HttpError(503, "Relayer not configured");
+        if (method === "POST" && limited(req, 40, "post")) throw new HttpError(429, "Slow down.");
+        return json(res, 200, await fn(req, m.slice(1), url));
+      }
+    }
+    if (url.pathname.startsWith("/api/")) return json(res, 404, { error: "not found" });
+    let f = path.join(WEB, path.normalize(url.pathname).replace(/^(\.\.[/\\])+/, ""));
+    if (!f.startsWith(WEB) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) f = path.join(WEB, "index.html");
+    if (!fs.existsSync(f)) return json(res, 404, { error: "web not built" });
+    res.writeHead(200, { "content-type": TYPES[path.extname(f)] || "application/octet-stream", "cache-control": f.includes("/assets/") ? "public, max-age=31536000, immutable" : "no-cache" });
+    fs.createReadStream(f).pipe(res);
+  } catch (e) {
+    const code = e.code && Number.isInteger(e.code) ? e.code : 500;
+    if (code === 500) log("error", url.pathname, e.message.slice(0, 300));
+    json(res, code, { error: e.message.slice(0, 300), tx: e.tx });
+  }
+}).listen(PORT, HOST, () => log(`private-otc keeper on http://${HOST}:${PORT}`));

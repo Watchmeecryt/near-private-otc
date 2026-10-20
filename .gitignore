@@ -1,0 +1,10 @@
+node_modules
+web/node_modules
+web/dist
+enclave/target
+.data
+*.env
+.env*
+!.env.example
+contracts/*.wasm
+web/tsconfig.tsbuildinfo
