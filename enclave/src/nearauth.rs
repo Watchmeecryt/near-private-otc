@@ -1,5 +1,5 @@
 //! NEAR-native checks done inside the TEE: NEP-413 signatures (wallet sign-in, maker approvals),
-//! access-key ownership via NEAR RPC, and proof of funds (verifier + wallet token balances).
+//! access-key ownership via NEAR RPC,.
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde_json::{json, Value};
@@ -21,6 +21,7 @@ fn rpc(params: Value) -> Result<Value, String> {
     Err(last)
 }
 
+#[allow(dead_code)]
 fn view(contract: &str, method: &str, args: Value) -> Result<Value, String> {
     let r = rpc(json!({ "request_type": "call_function", "finality": "final", "account_id": contract, "method_name": method, "args_base64": B64.encode(args.to_string()) }))?;
     let bytes: Vec<u8> = r["result"].as_array().ok_or("view result")?.iter().map(|x| x.as_u64().unwrap_or(0) as u8).collect();
@@ -79,10 +80,3 @@ pub fn approval(s: &Value, deal: &str, maker: &str) -> Result<String, String> {
     Ok(m["requester"].as_str().ok_or("requester")?.to_string())
 }
 
-/// Spendable balance of `token_id` ("nep141:<contract>"): inside the verifier plus in the wallet.
-pub fn balance(account: &str, token_id: &str) -> Result<u128, String> {
-    let p = |v: Value| v.as_str().and_then(|s| s.parse::<u128>().ok()).unwrap_or(0);
-    let inside = p(view(crate::VERIFIER, "mt_balance_of", json!({ "account_id": account, "token_id": token_id }))?);
-    let wallet = view(token_id.trim_start_matches("nep141:"), "ft_balance_of", json!({ "account_id": account })).map(p).unwrap_or(0);
-    Ok(inside.saturating_add(wallet))
-}

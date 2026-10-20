@@ -4,7 +4,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
-import { account, call, view, lastValue } from "./chain.mjs";
+import { account, call, view, lastValue, RPC } from "./chain.mjs";
 import { enclave } from "./enclave.mjs";
 import { fund, privyNearAccounts } from "./fund.mjs";
 import { walletLogin } from "./walletauth.mjs";
@@ -108,6 +108,22 @@ async function prices() {
   return priceCache.v;
 }
 
+// Anti-spam gate for requests: a fixed public threshold, the same for every deal and independent of
+// deal size (comparing with the sealed amount would leak it by probing). Not a fill guarantee:
+// settlement still fails safely if the taker lacks funds at accept time.
+const MIN_USD = Number(process.env.REQUEST_MIN_USD || 200);
+async function usdHolding(account, symbol) {
+  const t = tokenById(symbol); const p = (await prices())[t.symbol];
+  const inside = await view(VERIFIER, "mt_balance_of", { account_id: account, token_id: t.id }).catch(() => "0");
+  const wallet = await view(t.contract, "ft_balance_of", { account_id: account }).catch(() => "0");
+  let units = BigInt(inside || "0") + BigInt(wallet || "0");
+  if (t.contract === "wrap.testnet") { // native NEAR counts too: Deposit wraps it in the same transaction
+    const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_account", finality: "final", account_id: account } }) }).then((x) => x.json()).catch(() => null);
+    if (r?.result?.amount) units += BigInt(r.result.amount);
+  }
+  return Number(units) / 10 ** t.decimals * p;
+}
+
 const routes = [
   ["GET", /^\/api\/prices$/, async () => prices()],
   ["GET", /^\/api\/health$/, async () => ({ ok: true, keeper: KEEPER_ID, verifier: VERIFIER, deals: Object.keys(db.deals).length, relayer: !!keeper })],
@@ -182,15 +198,15 @@ const routes = [
     save(); return { token, account };
   }],
   ["POST", /^\/api\/deals\/(\w+)\/request$/, async (req, [id]) => {
-    // Proof of funds runs in the enclave: it compares the requester's verifier + wallet balance of the
-    // token the maker wants with the sealed amount and answers yes/no. The keeper never sees the amount.
+    // The enclave authenticates the requester (Privy or NEP-413 wallet login) and names the token the maker
+    // wants; the keeper then applies the fixed $ threshold (wallet + verifier balance, CoinGecko price).
     const d = getDeal(id); const { request_ct, account: me } = await jbody(req); await who(req, me);
     if (publicStatus(d) !== "Open") throw new HttpError(409, `This deal is ${publicStatus(d).toLowerCase()}.`);
     if (d.maker === me) throw new HttpError(400, "This is your own deal.");
     const ex = reqOf(d, me); if (ex && ex.status !== "declined" && !(ex.status === "pending" && d.auto)) return { request: (({ approval, ...q }) => q)(ex) };
     const r = await enclave(keeper, { action: "request", request: request_ct, offers: [d.offers[0].ct] });
     if (r.viewer !== me || r.deal !== id) throw new HttpError(400, "Request mismatch");
-    if (!r.funded) throw new HttpError(403, `You need enough ${r.want} to request this deal. Top up in Wallet and try again.`);
+    if ((await usdHolding(me, r.want)) < MIN_USD) throw new HttpError(403, `You need at least $${MIN_USD} in ${r.want} to request deals.`);
     const q = { account: me, at: Date.now(), status: d.auto ? "approved" : "pending", auto: !!d.auto, tx: r.tx, approval: d.auto || undefined };
     d.requests = (d.requests || []).filter((x) => x.account !== me); d.requests.push(q); save(); log("request", id, me, q.status);
     return { request: (({ approval, ...x }) => x)(q) };

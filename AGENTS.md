@@ -4,7 +4,7 @@
 OTC traders can't find a counterparty without already knowing them, and posting a size/price publicly leaks information.
 
 ## Solution
-An open deal board (no sign-in needed) that shows only pair, side, expiry, status, request and counter-offer counts. Exact terms are sealed to an OutLayer TEE enclave. A taker requests access; the enclave checks proof of funds (verifier + wallet balance of the token the maker wants >= the sealed amount, yes/no only); the maker approves (NEP-413 signed, or auto-approve "*"); only then does the enclave reveal the terms. Counters and accepts only from approved requesters. Sign-in: Privy (email/Google) or NEAR Wallet Selector (Meteor, HOT, Intear, HERE, MyNearWallet; Ledger connect-only) with a NEP-413 login. Matching NEP-413 signed `token_diff` intents are settled atomically with `execute_intents` on a NEAR Intents verifier.
+An open deal board (no sign-in needed) that shows only pair, side, expiry, status, request and counter-offer counts. Exact terms are sealed to an OutLayer TEE enclave. A taker requests access; the enclave authenticates them and the keeper checks a fixed $200 (CoinGecko) holding of the token the maker wants, wallet + verifier, as a spam filter independent of deal size; the maker approves (NEP-413 signed, or auto-approve "*"); only then does the enclave reveal the terms. Counters and accepts only from approved requesters. Sign-in: Privy (email/Google) or NEAR Wallet Selector (Meteor, HOT, Intear, HERE, MyNearWallet; Ledger connect-only) with a NEP-413 login. Matching NEP-413 signed `token_diff` intents are settled atomically with `execute_intents` on a NEAR Intents verifier.
 
 ## Hackathon tracks
 - Privacy (TEE sealing, private negotiation).

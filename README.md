@@ -129,20 +129,20 @@ Chips: **2 min (demo)**, 1h, 24h, 7d. The chosen time becomes the `deadline` ins
 
 ## Enclave output
 
-The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `137501e48aee5d6667dc7d368274ea29b676d24e52580e8e8d4705f98ea16aaf` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
+The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `1b9862020a7a0e13b809880d6022e6e636712731b325f424a60d108345da1760` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
 
 ## Request access, proof of funds, maker approval
 
 The board is open: anyone (no sign-in) sees public deals' pair, side, expiry, status and how many requests and counter-offers they have. Exact terms stay sealed.
 
 1. **Request terms.** A signed-in taker (Privy or NEAR wallet) seals `{identity, account, deal}` to the enclave. Identity is the Privy access token, or for wallet users a NEP-413 signed login.
-2. **Proof of funds, in the enclave.** The enclave authenticates the requester, then reads, over NEAR RPC from inside the TEE, `mt_balance_of` on the verifier plus `ft_balance_of` in the wallet for the token the maker wants. It compares the sum with the sealed receive amount. It outputs only `funded: true/false` and the token symbol, never the amount. The keeper never sees the amount. If the check fails, the request is refused: "You need enough <token> to request this deal".
+2. **Proof of funds (spam filter).** The enclave authenticates the requester and names the token the maker wants. The keeper then checks the requester holds at least **$200** of that token (verifier `mt_balance_of` + wallet `ft_balance_of`, plus native NEAR for wNEAR; priced with the cached CoinGecko feed). The threshold is fixed and public, the same for every deal, and never compared with the sealed amount, so probing can't reveal deal size. It is a spam filter, not a fill guarantee: if the taker lacks the full amount at accept time, `simulate_intents` / `execute_intents` fails and nothing moves. Failing message: "You need at least $200 in <token> to request deals." (`REQUEST_MIN_USD` env overrides.)
 3. **Maker approval.** Qualified requests appear on the maker's deal page and in My deals. Approve = the maker signs a NEP-413 message `{otc_approve: deal, requester}`. The enclave validates that signature against the maker's key before the keeper stores it.
-4. **Reveal.** The enclave re-seals the terms to the requester's one-time browser key only if a valid maker approval for that account (or `"*"`) is presented. A `"*"` approval also re-checks funds. The keeper can't forge approvals: they're signed by the maker and checked in the TEE.
-5. **Auto-approve** (per deal, at creation or later): the maker signs `{otc_approve: deal, requester: "*"}`. Anyone who passes the funds check is approved immediately. Turning it off stops the keeper using it for new requests.
+4. **Reveal.** The enclave re-seals the terms to the requester's one-time browser key only if a valid maker approval for that account (or `"*"`) is presented. The keeper can't forge approvals: they're signed by the maker and checked in the TEE.
+5. **Auto-approve** (per deal, at creation or later): the maker signs `{otc_approve: deal, requester: "*"}`. Anyone who passes the $200 check is approved immediately. Turning it off stops the keeper using it for new requests.
 6. **Counter / accept** are only accepted from approved requesters (keeper). Parallel counters, maker picks one, first settlement wins (per-deal lock + verifier nonce burn).
 
-Limits: pass/fail reveals whether the requester's (public) balance covers the amount, a one-bit hint. The requester's account appears in the OutLayer job input on chain, sealed, but the job runs as the keeper.
+Limits: the's account appears in the OutLayer job input on chain, sealed, but the job runs as the keeper.
 
 ## Sign-in: Privy or a NEAR wallet
 

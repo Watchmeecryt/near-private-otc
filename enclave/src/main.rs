@@ -4,8 +4,7 @@
 //!   pubkey : the enclave's ECIES public key (secp256k1). Browsers seal deal offers to it.
 //!   check  : open one sealed offer, verify its signed NEAR Intents payload matches the sealed terms,
 //!            and return ONLY coarse public facts (pair, side, deadline, parties; no size or price).
-//!   request: proof of funds. A signed-in requester (Privy or NEP-413 wallet sign-in) is checked
-//!            against the maker's sealed receive amount: verifier + wallet balance >= amount. Yes/no only.
+//!   request: authenticate a requester (Privy or NEP-413 wallet sign-in) for a deal. No amount check.
 //!   approval: validate a maker's NEP-413 approval {otc_approve: deal, requester | "*"}.
 //!   reveal : a signed-in party proves (via Privy, checked from inside the TEE) that they hold a NEAR
 //!            account; the enclave re-seals the exact terms of the offers that account may see to the
@@ -66,8 +65,7 @@ fn authenticate(req: &RevealReq) -> Result<(), String> {
     let wallets = jwt::near_wallets(req.id_token.as_deref().ok_or("sign in first")?)?;
     if wallets.iter().any(|w| *w == req.account) { Ok(()) } else { Err("this sign-in does not hold that NEAR account".into()) }
 }
-/// Proof of funds: requester holds at least what the maker wants (never output, only a yes/no).
-fn funded(o: &Offer, account: &str) -> Result<bool, String> { Ok(nearauth::balance(account, &o.terms.buy_token)? >= amt(&o.terms.buy_amount)?) }
+
 
 fn main() {
     let mut s = String::new();
@@ -168,8 +166,7 @@ fn run(input: Input) -> Result<Value, String> {
             if open_o.deal != req.deal { return Err("offer belongs to another deal".into()); }
             if open_o.from != req.account {
                 let who = nearauth::approval(input.approval.as_ref().ok_or("the maker has not approved you yet")?, &req.deal, &open_o.from)?;
-                if who == "*" { if !funded(&open_o, &req.account)? { return Err("insufficient funds".into()); } }
-                else if who != req.account { return Err("approval is for someone else".into()); }
+                if who != "*" && who != req.account { return Err("approval is for someone else".into()); }
             }
             let mut seen = vec![];
             for ct in &input.offers {
@@ -182,7 +179,8 @@ fn run(input: Input) -> Result<Value, String> {
             Ok(json!({ "deal": req.deal, "viewer": req.account, "offers_ct": seal_to(&req.eph_pub, Value::Array(seen.clone()).to_string().as_bytes())?, "visible": seen.len() }))
         }
         "request" => {
-            // Proof of funds, checked here so the keeper never learns the amount. Output is yes/no only.
+            // Authenticates the requester for this deal. Deliberately NOT compared with the sealed amount
+            // (a pass/fail would leak size by probing); the keeper applies a fixed public $ threshold.
             let (_, rplain) = open(input.request.as_deref().ok_or("request")?)?;
             let req: RevealReq = serde_json::from_slice(&rplain).map_err(|e| format!("request json: {e}"))?;
             authenticate(&req)?;
@@ -190,7 +188,7 @@ fn run(input: Input) -> Result<Value, String> {
             if o.to != "*" || o.deal != req.deal { return Err("not this deal's opening offer".into()); }
             if o.from == req.account { return Err("this is your own deal".into()); }
             let (want, _) = token(&o.terms.buy_token)?;
-            Ok(json!({ "deal": req.deal, "viewer": req.account, "funded": funded(&o, &req.account)?, "want": want }))
+            Ok(json!({ "deal": req.deal, "viewer": req.account, "want": want }))
         }
         "approval" => {
             // Validate a maker approval (so the keeper can't store a forged one). Output: requester only.
