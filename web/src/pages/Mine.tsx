@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "@phosphor-icons/react";
 import { Top, NeedSignIn } from "../app/Shell";
 import { useApp } from "../app/state";
 import { api, type MyDeal } from "../lib/api";
-import { StatusChip } from "../components/ui";
+import { DealCard } from "../components/DealCard";
 
 const ORDER = ["All", "Open", "Requested", "Countered", "Settled", "Expired", "Cancelled"];
 export default function Mine() {
@@ -20,12 +19,9 @@ export default function Mine() {
       <div className="chips-scroll">{ORDER.map((s) => <button key={s} className={`chip ${f === s ? "chip-blue" : "chip-muted"}`} onClick={() => setF(s)}>{s}</button>)}</div>
       {list === null ? <div className="card card-pad muted">Loading…</div> : shown.length === 0 ? <div className="card card-pad muted">Nothing here yet. <Link className="link" to="/app">Browse the board</Link> or <Link className="link" to="/app/new">post a deal</Link>.</div> : (
         <div className="deal-list">
-          {shown.map((d) => (
-            <Link key={d.id} to={`/app/d/${d.id}`} className="card deal-row">
-              <div className="dr-main"><span className={`side-tag ${d.side}`}>{d.role === "maker" ? "Maker" : "Taker"}</span><b>{d.pair}</b><span className="muted mono">{d.id}</span></div>
-              <div className="dr-meta">{d.visibility === "private" && <span className="chip chip-muted">Private</span>}<span className="chip chip-muted">{d.counters} counter{d.counters === 1 ? "" : "s"}</span><StatusChip s={d.my_status} /><ArrowRight size={16} /></div>
-            </Link>
-          ))}
+          {shown.map((d) => { const pend = d.role === "maker" ? (d.request_list?.filter((q) => q.status === "pending").length ?? 0) : 0; return (
+            <DealCard key={d.id} d={d} status={d.my_status} sub={<>{d.role === "maker" ? "You're the maker" : "You requested"} · <span className="mono">{d.id.slice(0, 8)}</span></>}
+              extra={pend > 0 ? <span className="chip chip-blue">{pend} to approve</span> : null} />); })}
         </div>
       )}
     </>

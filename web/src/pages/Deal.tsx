@@ -159,7 +159,7 @@ export default function Deal() {
             {isMaker && (
               <div style={{ marginTop: 16 }}>
                 <div className="row-between"><h3 className="h3">Requests</h3><label className="tiny" style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={!!d.auto_approve} disabled={!!busy || !live} onChange={(e) => setAuto(e.target.checked)} /> Auto-approve anyone with funds</label></div>
-                {my?.requests?.length ? <ul className="req-list">{[...my.requests].reverse().map((q) => (
+                {my?.request_list?.length ? <ul className="req-list">{[...my.request_list].reverse().map((q) => (
                   <li key={q.account}><span className="mono" title={q.account}>{short(q.account, 10, 4)}</span><span className="tiny muted">≥ $200 ✓ · {new Date(q.at).toLocaleString()}</span>
                     {q.status === "pending" && live ? <span className="row-gap"><button className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => decide(q.account, "decline")}>Decline</button><button className="btn btn-dark btn-sm" disabled={!!busy} onClick={() => decide(q.account, "approve")}>Approve</button></span> : <span className={`chip ${q.status === "approved" ? "chip-green" : "chip-muted"}`}>{q.status}{q.auto ? " (auto)" : ""}</span>}</li>))}</ul>
                   : <p className="muted small">No requests yet. Everyone who requests holds at least $200 of the token you want (a spam filter, not a fill guarantee).</p>}

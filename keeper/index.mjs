@@ -133,7 +133,7 @@ const routes = [
     const me = url.searchParams.get("account"); await who(req, me);
     return Object.values(db.deals).filter((d) => d.maker === me || d.requesters.includes(me) || !!reqOf(d, me) || d.offers.some((o) => o.from === me || o.to === me))
       .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined, views: d.maker === me ? (d.views || []) : undefined,
-        requests: d.maker === me ? (d.requests || []).map(({ approval, ...q }) => q) : undefined, my_request: d.maker === me ? undefined : (({ approval, ...q }) => q)(reqOf(d, me) || {}) }));
+        request_list: d.maker === me ? (d.requests || []).map(({ approval, ...q }) => q) : undefined, my_request: d.maker === me ? undefined : (({ approval, ...q }) => q)(reqOf(d, me) || {}) }));
   }],
   ["POST", /^\/api\/deals$/, async (req) => {
     const { offer_ct, nonce, account: me, visibility, auto_approval } = await jbody(req); await who(req, me);
