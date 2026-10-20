@@ -5,7 +5,9 @@ import { LockKey } from "@phosphor-icons/react";
 import { Top, NeedSignIn } from "../app/Shell";
 import { useApp } from "../app/state";
 import { TOKENS, toUnits } from "@shared/otc.mjs";
-import { signedOffer, newDealId } from "../lib/deal";
+import { signedOffer, newDealId, balances } from "../lib/deal";
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { api, type Terms } from "../lib/api";
 import { SignPanel, PrivacyNote, Pick } from "../components/ui";
 
@@ -19,6 +21,8 @@ export default function Create() {
   const [size, setSize] = useState(""); const [price, setPrice] = useState("");
   const [exp, setExp] = useState<number>(EXP[1][1]); const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
+  const [bal, setBal] = useState<Record<string, string> | null>(null);
+  useEffect(() => { if (account) balances(account).then(setBal).catch(() => {}); }, [account]);
   const tb = TOKENS.find((t: any) => t.id === base)!, tq = TOKENS.find((t: any) => t.id === quote)!;
   const total = Number(size) * Number(price);
   const terms: Terms | null = useMemo(() => {
@@ -58,8 +62,9 @@ export default function Create() {
         <div className="field"><span>Expires in</span><Pick label="Expires in" value={String(exp)} onChange={(v) => setExp(Number(v))} options={EXP.map(([l, v]) => ({ value: String(v), label: l }))} /></div>
         <label className="field"><span>Private note (optional)</span><input className="input" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Only takers who request see this" /></label>
         {base === quote && <p className="err">Pick two different tokens.</p>}
+        {terms && bal && BigInt(bal[terms.sell_token] || "0") < BigInt(terms.sell_amount) && <p className="warn-note">Your {TOKENS.find((t: any) => t.id === terms.sell_token)!.symbol} balance is too low to fill this deal. <Link to="/app/wallet#faucet" className="link">Claim test tokens from the Faucet →</Link></p>}
         {terms && <SignPanel kind="token_diff intent (NEP-413), sealed to the enclave" terms={terms} deadline={deadline} gas="None. The relayer pays for settlement.">
-          <p className="tiny muted">Settles only if a taker signs the exact mirror image. Make sure this balance is deposited (Wallet) before someone accepts.</p></SignPanel>}
+          <p className="tiny muted">Settles only if a taker signs the exact mirror image. Keep this balance in your Wallet until someone accepts.</p></SignPanel>}
         <button className="btn btn-dark btn-full" disabled={!terms || !!busy} onClick={submit}><LockKey size={16} weight="bold" /> {busy || "Sign & seal deal"}</button>
       </div>
       <div className="form-wide" style={{ marginTop: 16 }}><PrivacyNote /></div>

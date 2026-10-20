@@ -50,10 +50,9 @@ What the operator (keeper) sees: sealed blobs, the coarse facts above, and *whic
 | NEP-413 signing | Intents are NEP-413 payloads (recipient = our verifier) signed with the Privy-held ed25519 key via raw-hash signing | [NEP-413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md), [Signing intents](https://docs.near-intents.org/integration/verifier-contract/signing-intents) |
 | Implicit accounts | 64-hex accounts; the verifier trusts the implicit key without `add_public_key` | [Account abstraction](https://docs.near-intents.org/integration/verifier-contract/account-abstraction) |
 | Deadlines & nonces | Expiry via `deadline`; cancel by burning nonces with empty intents (v0.4.2 has no separate invalidate call) | [Signing intents](https://docs.near-intents.org/integration/verifier-contract/signing-intents) |
-| `ft_transfer_call` deposits / `ft_withdraw` | Faucet and wNEAR deposits go in with `msg = account`; withdrawals are signed `ft_withdraw` intents | [Deposits](https://docs.near-intents.org/integration/verifier-contract/deposits-and-withdrawals/deposits), [Withdrawals](https://docs.near-intents.org/integration/verifier-contract/deposits-and-withdrawals/withdrawals) |
-| Storage deposits (NEP-145) | Verifier pre-registered on every token; users register once before withdrawing/wrapping | [Storage](https://docs.near.org/smart-contracts/anatomy/storage) |
+| `ft_transfer_call` deposits | The faucet credits test tokens straight into the user's verifier balance with `msg = account` (the API also relays signed `ft_withdraw` intents as an advanced, UI-less option) | [Deposits](https://docs.near-intents.org/integration/verifier-contract/deposits-and-withdrawals/deposits), [Withdrawals](https://docs.near-intents.org/integration/verifier-contract/deposits-and-withdrawals/withdrawals) |
+| Storage deposits (NEP-145) | Verifier pre-registered on every token, so faucet deposits need no user setup | [Storage](https://docs.near.org/smart-contracts/anatomy/storage) |
 | Relayer-paid gas | `otcdesk.testnet` submits `execute_intents`; signing a deal costs the user nothing | [Meta-transactions](https://docs.near.org/chain-abstraction/meta-transactions) |
-| Multi-action transactions | Deposit = `storage_deposit` + `near_deposit` + `ft_transfer_call` on `wrap.testnet` in one signed tx | [Transactions](https://docs.near.org/protocol/transactions) |
 | OutLayer TEE + yield/resume | Sealed terms, reveal and matching run in Intel TDX; called on chain | [OutLayer](https://outlayer.fastnear.com) |
 | NEP-141 tokens & wNEAR | `tUSDC`, `tETH` (upstream FT wasm), `wrap.testnet` | [FT](https://docs.near.org/primitives/ft) |
 | Testnet helper (faucet) API | Created the project's top-level testnet accounts | [Faucet](https://docs.near.org/tools/faucet) |
@@ -80,7 +79,7 @@ Deployment transaction hashes: `deployments/private-otc.json`.
 enclave/   OutLayer WASI worker: pubkey / check / reveal / settle, Privy check from inside the TEE
 keeper/    Node server: deal read model, enclave relay, relayer (simulate + execute_intents), faucet, account funding, RPC proxy, serves web/dist
 shared/    otc.mjs: tokens, ECIES sealing, NEP-413 hashing/signing, unit helpers (browser + node)
-web/       Vite + React app (Privy sign-in): board, deal page, new deal, my deals, wallet, how it works
+web/       Vite + React app (Privy sign-in): board, deal page, new deal, my deals, wallet (balances, faucet, activity), how it works
 contracts/ pointers to the upstream wasm we deployed
 scripts/   deploy-near.mjs (verifier + tokens)
 ```
@@ -102,7 +101,8 @@ Enclave rebuild: `PRIVY_APP_ID=... APP_ORIGIN=https://your-app cargo build --rel
 - Testnet only, our own verifier copy (not `intents.near`). One keeper, one enclave deployment.
 - The enclave trusts Privy's answer about which NEAR wallet belongs to a sign-in.
 - The keeper must stay online to relay; if OutLayer is down, reveal and settle wait.
-- The maker must keep enough balance in the verifier; `simulate_intents` refuses an accept that would fail.
+- The maker must keep enough balance in the verifier (the New deal form warns and links to the faucet); `simulate_intents` refuses an accept that would fail.
+- The Wallet shows balances, faucet and activity only. There is no deposit/withdraw UI: testnet tokens come from the faucet straight into the verifier.
 
 ## License
 

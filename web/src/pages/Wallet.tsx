@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@unlocalhosted/metalui";
-import { Drop, ArrowDown, ArrowUp, Coins, ClockCounterClockwise } from "@phosphor-icons/react";
+import { Drop, Coins, ClockCounterClockwise } from "@phosphor-icons/react";
 import { Top, NeedSignIn } from "../app/Shell";
 import { useApp } from "../app/state";
 import { api } from "../lib/api";
-import { balances, withdrawPayload } from "../lib/deal";
-import { sendTx, viewCall } from "../lib/privy";
-import { TOKENS, VERIFIER, fromUnits, toUnits } from "@shared/otc.mjs";
-import { SignPanel, Tx, Pick } from "../components/ui";
+import { balances } from "../lib/deal";
+import { TOKENS, fromUnits } from "@shared/otc.mjs";
+import { Tx } from "../components/ui";
 
-const STORAGE = "1250000000000000000000"; // 0.00125 NEAR
 type Act = { kind: string; detail: string; tx: string; at: number };
 const actKey = (a: string) => `otc-activity-${a}`;
 const readActs = (a: string): Act[] => { try { return JSON.parse(localStorage.getItem(actKey(a)) || "[]"); } catch { return []; } };
@@ -24,8 +22,6 @@ export default function WalletPage() {
   const [bal, setBal] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState("");
   const [acts, setActs] = useState<Act[]>([]);
-  const [dep, setDep] = useState("0.1");
-  const [wd, setWd] = useState({ token: TOKENS[0].id as string, amount: "" });
   const load = () => account && balances(account).then(setBal).catch(() => {});
   useEffect(() => { if (!account) return; setActs(readActs(account)); load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [account]);
   useEffect(() => { if (location.hash === "#faucet") setTimeout(() => document.getElementById("faucet")?.scrollIntoView({ behavior: "smooth" }), 200); }, []);
@@ -36,21 +32,9 @@ export default function WalletPage() {
     catch (e: any) { toast.show({ title: `${kind} failed`, sub: e.message, tone: "error" }); } finally { setBusy(""); }
   };
   const faucet = async (t: any) => { setBusy("Faucet:" + t.symbol); try { const r = await api<any>("/api/faucet", { account, token: t.symbol }); bump(account, t.symbol); record({ kind: "Faucet", detail: `+${t.faucet} ${t.symbol}`, tx: r.tx, at: Date.now() }); toast.show({ title: `+${t.faucet} ${t.symbol}`, sub: "Added to your balance", tone: "success" }); setTimeout(load, 1500); } catch (e: any) { if (/limit/i.test(e.message)) { localStorage.setItem(claimKey(account, t.symbol), "3"); setActs([...acts]); } toast.show({ title: "Faucet failed", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
-  const deposit = () => run("Deposit", `${dep} NEAR → wNEAR`, () => sendTx(account, "wrap.testnet", [
-    { method: "storage_deposit", args: { account_id: account, registration_only: true }, deposit: STORAGE, tgas: 10 },
-    { method: "near_deposit", args: {}, deposit: toUnits(dep, 24), tgas: 10 },
-    { method: "ft_transfer_call", args: { receiver_id: VERIFIER, amount: toUnits(dep, 24), msg: account }, deposit: "1", tgas: 100 },
-  ]));
-  const wt = TOKENS.find((t: any) => t.id === wd.token)!;
-  const withdraw = () => run("Withdraw", `${wd.amount} ${wt.symbol}`, async () => {
-    const reg = await viewCall(wt.contract, "storage_balance_of", { account_id: account }).catch(() => null);
-    if (!reg) await sendTx(account, wt.contract, [{ method: "storage_deposit", args: { account_id: account, registration_only: true }, deposit: STORAGE, tgas: 10 }]);
-    const signed = await withdrawPayload(account, wt.contract, toUnits(wd.amount, wt.decimals));
-    return (await api<any>("/api/withdraw", { account, signed })).tx;
-  });
   return (
     <>
-      <Top title="Wallet" sub="Your balances inside the NEAR Intents verifier. Deals settle from here." />
+      <Top title="Wallet" sub="Your test-token balances inside the NEAR Intents verifier. Deals settle straight from here; claim tokens from the faucet." />
       <div className="wallet-grid">
         <section className="card card-pad w-bal">
           <h3 className="h3"><Coins size={18} weight="duotone" /> Balances</h3>
@@ -68,21 +52,6 @@ export default function WalletPage() {
               <span className="ft-lim">{n}/3 today</span>
               <button className="btn btn-dark btn-sm ft-btn" disabled={!!busy || done} onClick={() => faucet(t)}>{busy === "Faucet:" + t.symbol ? "Claiming…" : done ? "Limit reached" : "Claim"}</button>
             </div>); })}</div>
-        </section>
-        <section className="card card-pad">
-          <h3 className="h3"><ArrowDown size={18} /> Deposit NEAR</h3>
-          <label className="field"><span>Amount (NEAR)</span><input className="input mono" value={dep} onChange={(e) => setDep(e.target.value)} /></label>
-          <SignPanel kind="NEAR tx to wrap.testnet: storage_deposit → near_deposit → ft_transfer_call(verifier)" gas="You pay ~0.001 NEAR from your topped-up account." />
-          <button className="btn btn-dark btn-full" disabled={!!busy} onClick={deposit}>{busy === "Deposit" ? "Depositing…" : "Sign & deposit"}</button>
-        </section>
-        <section className="card card-pad">
-          <h3 className="h3"><ArrowUp size={18} /> Withdraw</h3>
-          <div className="field-row">
-            <div className="field"><span>Token</span><Pick label="Token" value={wd.token} onChange={(v) => setWd({ ...wd, token: v })} options={TOKENS.map((t: any) => ({ value: t.id, label: t.symbol }))} /></div>
-            <label className="field"><span>Amount</span><input className="input mono" value={wd.amount} onChange={(e) => setWd({ ...wd, amount: e.target.value })} placeholder="0.0" /></label>
-          </div>
-          <SignPanel kind={`ft_withdraw intent (NEP-413) → ${wt.contract}`} gas="Relayer pays. First withdraw of a token asks for a 0.00125 NEAR storage_deposit." />
-          <button className="btn btn-dark btn-full" disabled={!!busy || !(Number(wd.amount) > 0)} onClick={withdraw}>{busy === "Withdraw" ? "Withdrawing…" : "Sign & withdraw"}</button>
         </section>
         <section className="card card-pad w-act">
           <h3 className="h3"><ClockCounterClockwise size={18} /> Activity</h3>

@@ -19,7 +19,8 @@ A public deal board that shows only pair, side, size band and expiry. Exact term
 5. Atomic settlement: enclave checks exact mirror match → simulate_intents → execute_intents.
 6. Expiry via deadline; cancel via nonce burn (empty intents re-using offer nonces).
 7. My deals with statuses Open, Requested, Countered, Settled, Expired, Cancelled; short links `/d/<id>`.
-8. Wallet: intents balances, faucet (tUSDC, wNEAR, tETH straight into the verifier), wrap+deposit NEAR, ft_withdraw.
+8. Wallet: intents balances, faucet (tUSDC, wNEAR, tETH straight into the verifier, 3 claims/token/day), activity. No deposit/withdraw UI (the API keeps an advanced ft_withdraw relay).
+11. New deal warns when the sold token's balance is too low and links to the faucet.
 9. Keeper funds new Privy implicit accounts with 0.2 test NEAR (up to 3 top-ups per sign-in while the account doesn't exist).
 10. "What you're signing" panel before every signature; privacy note on deal pages; How it works page.
 

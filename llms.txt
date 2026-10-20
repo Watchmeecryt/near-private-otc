@@ -13,7 +13,7 @@
 - [Board](/app): open deals (coarse info)
 - [New deal](/app/new)
 - [My deals](/app/mine)
-- [Wallet](/app/wallet): balances, faucet, deposit, withdraw
+- [Wallet](/app/wallet): balances, faucet (tUSDC, tETH, wNEAR), activity
 - [How it works](/app/how): flow, privacy, every NEAR feature used
 
 ## API
