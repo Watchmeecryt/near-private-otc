@@ -4,7 +4,7 @@
 OTC traders can't find a counterparty without already knowing them, and posting a size/price publicly leaks information.
 
 ## Solution
-A public deal board that shows only pair, side, size band and expiry. Exact terms and every counter-offer are sealed to an OutLayer TEE enclave and revealed only to signed-in parties. Matching NEP-413 signed `token_diff` intents are settled atomically with `execute_intents` on a NEAR Intents verifier.
+A deal board (signed-in users only) that shows only pair, side, expiry and counter-offer count. Exact terms and every counter-offer are sealed to an OutLayer TEE enclave and revealed only to signed-in parties. Matching NEP-413 signed `token_diff` intents are settled atomically with `execute_intents` on a NEAR Intents verifier.
 
 ## Hackathon tracks
 - Privacy (TEE sealing, private negotiation).
@@ -12,7 +12,7 @@ A public deal board that shows only pair, side, size band and expiry. Exact term
 - Real-world money (email/Google sign-in, no wallet, relayer-paid gas).
 
 ## Features (implemented)
-1. Public deal board with coarse info only; enclave computes the band.
+1. Public deal board with coarse info only (no size range); requires a Privy sign-in.
 2. Maker posts: signed token_diff + terms sealed to the enclave.
 3. Request terms: enclave verifies Privy sign-in owns the NEAR account, re-seals terms to a one-time browser key.
 4. Accept / Counter / Decline with step indicator; counters are new signed sealed intents.

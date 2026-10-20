@@ -26,7 +26,8 @@ let saving = null;
 const save = () => { clearTimeout(saving); saving = setTimeout(() => fs.writeFileSync(DB + ".tmp", JSON.stringify(db)) || fs.renameSync(DB + ".tmp", DB), 50); };
 const expired = (d) => Date.parse(d.coarse.deadline) < Date.now();
 const publicStatus = (d) => d.status === "Settled" || d.status === "Cancelled" ? d.status : expired(d) ? "Expired" : "Open";
-const publicDeal = (d) => ({ id: d.id, ...d.coarse, from: undefined, to: undefined, commitment: undefined, status: publicStatus(d), created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
+const counterCount = (d) => d.offers.filter((o) => o.kind === "counter").length;
+const publicDeal = (d) => ({ id: d.id, pair: d.coarse.pair, side: d.coarse.side, deadline: d.coarse.deadline, status: publicStatus(d), counters: counterCount(d), created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
 /** Status as seen by one account. */
 function myStatus(d, me) {
   const p = publicStatus(d); if (p !== "Open") return p;
@@ -60,6 +61,7 @@ async function who(req, want) {
   if (want && !r.v.accounts.includes(want)) throw new HttpError(403, "That NEAR account is not linked to this sign-in.");
   return r.v;
 }
+const settling = new Set();
 const getDeal = (id) => { const d = db.deals[id]; if (!d) throw new HttpError(404, "Deal not found"); return d; };
 const shortId = () => base58(randomBytes(6)).slice(0, 8);
 
@@ -98,12 +100,12 @@ async function prices() {
 const routes = [
   ["GET", /^\/api\/prices$/, async () => prices()],
   ["GET", /^\/api\/health$/, async () => ({ ok: true, keeper: KEEPER_ID, verifier: VERIFIER, deals: Object.keys(db.deals).length, relayer: !!keeper })],
-  ["GET", /^\/api\/deals$/, async () => Object.values(db.deals).sort((a, b) => b.created - a.created).map(publicDeal)],
-  ["GET", /^\/api\/deals\/([\w]+)$/, async (req, [id]) => publicDeal(getDeal(id))],
+  ["GET", /^\/api\/deals$/, async (req) => (await who(req), Object.values(db.deals).sort((a, b) => b.created - a.created).map(publicDeal))],
+  ["GET", /^\/api\/deals\/([\w]+)$/, async (req, [id]) => (await who(req), publicDeal(getDeal(id)))],
   ["GET", /^\/api\/my$/, async (req, _, url) => {
     const me = url.searchParams.get("account"); await who(req, me);
     return Object.values(db.deals).filter((d) => d.maker === me || d.requesters.includes(me) || d.offers.some((o) => o.from === me || o.to === me))
-      .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined }));
+      .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined, views: d.maker === me ? (d.views || []) : undefined }));
   }],
   ["POST", /^\/api\/deals$/, async (req) => {
     const { offer_ct, nonce, account: me } = await jbody(req); await who(req, me);
@@ -111,16 +113,16 @@ const routes = [
     if (c.from !== me || c.to !== "*") throw new HttpError(400, "Opening offers must be signed by you and open to anyone.");
     if (db.deals[c.deal]) throw new HttpError(409, "Deal id taken, try again.");
     const d = { id: c.deal, created: Date.now(), maker: me, status: "Open", requesters: [], check_tx: c.tx,
-      coarse: { pair: c.pair, side: c.side, band: c.band, deadline: c.deadline },
+      coarse: { pair: c.pair, side: c.side, deadline: c.deadline },
       offers: [{ id: "o1", kind: "open", from: me, to: "*", nonce, at: Date.now(), status: "live", ct: offer_ct, commitment: c.commitment, tx: c.tx }] };
-    db.deals[d.id] = d; save(); log("deal", d.id, c.pair, c.band);
+    db.deals[d.id] = d; save(); log("deal", d.id, c.pair);
     return publicDeal(d);
   }],
   ["POST", /^\/api\/deals\/(\w+)\/reveal$/, async (req, [id]) => {
     const d = getDeal(id); const { request_ct, account: me } = await jbody(req); await who(req, me);
     const r = await enclave(keeper, { action: "reveal", request: request_ct, offers: d.offers.map((o) => o.ct) });
     if (r.viewer !== me || r.deal !== id) throw new HttpError(400, "Request mismatch");
-    if (me !== d.maker && !d.requesters.includes(me)) { d.requesters.push(me); save(); }
+    if (me !== d.maker) { if (!d.requesters.includes(me)) d.requesters.push(me); (d.views ||= []).push({ account: me, at: Date.now() }); if (d.views.length > 500) d.views.shift(); save(); log("reveal", id, me); }
     return { offers_ct: r.offers_ct, visible: r.visible, tx: r.tx, offers: thread(d, me) };
   }],
   ["POST", /^\/api\/deals\/(\w+)\/offer$/, async (req, [id]) => {
@@ -135,9 +137,18 @@ const routes = [
       d.offers.forEach((x) => { if (x.kind === "counter" && x.status === "live" && ((x.from === me && x.to === prev.from) || x.id === reply_to)) x.status = "superseded"; });
       d.offers.push(o); save(); return { offer: (({ ct, ...x }) => x)(o) };
     }
-    const s = await enclave(keeper, { action: "settle", offers: [prev.ct, offer_ct] });
-    const tx = await execute(s.signed);
+    // First settlement wins: a per-deal lock stops parallel accepts here, and the verifier's nonce burn
+    // stops any signed pair from executing twice even across restarts.
+    if (settling.has(id)) throw new HttpError(409, "Another trade on this deal is settling right now. If it goes through, this deal is closed.");
+    settling.add(id);
+    let s, tx;
+    try {
+      s = await enclave(keeper, { action: "settle", offers: [prev.ct, offer_ct] });
+      if (d.status === "Settled") throw new HttpError(409, "Too late: this deal was already settled with another counterparty.");
+      tx = await execute(s.signed).catch((e) => { throw /nonce/i.test(e.message) ? new HttpError(409, "Too late: this deal was already filled or cancelled, so its signatures can no longer be used. Nothing was moved from your balance.") : e; });
+    } finally { settling.delete(id); }
     o.status = "settled"; prev.status = "settled"; d.offers.push(o);
+    d.offers.forEach((x) => { if (x.status === "live") x.status = "closed"; });
     d.status = "Settled"; d.settle_tx = tx; d.settle_enclave_tx = s.tx; save(); log("settled", id, tx);
     return { settled: true, tx, enclave_tx: s.tx };
   }],

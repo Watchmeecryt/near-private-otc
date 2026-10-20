@@ -35,6 +35,7 @@ export default function Deal() {
   useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
   useEffect(() => { if (account) setRev(cachedReveal(account, id)); }, [account, id]);
 
+  if (!account) return <><Top title="Deal" /><NeedSignIn what="Sign in to view this deal." /></>;
   if (!d) return <><Top title="Deal" /><div className="card card-pad muted">Loading… (or this deal does not exist)</div></>;
   const me = account;
   const offers: (OfferMeta & { r?: Revealed })[] = (my?.offers || []).map((o) => ({ ...o, r: rev?.find((x) => x.commitment === o.commitment) }));
@@ -87,9 +88,9 @@ export default function Deal() {
           <Steps at={step} />
           <dl className="kv-mini" style={{ marginTop: 12 }}>
             <dt>Status</dt><dd><StatusChip s={my?.my_status || d.status} /></dd>
-            <dt>Rough amount</dt><dd className="mono">{d.band}</dd>
+            <dt>Counter-offers</dt><dd>{d.counters}</dd>
             <dt>Expires</dt><dd>{deadlineMs > now ? countdown(deadlineMs - now) : "ended"}</dd>
-            {isMaker && <><dt>Requests</dt><dd>{my?.requesters ?? 0} taker(s) viewed terms</dd></>}
+            {isMaker && <><dt>Viewed by</dt><dd>{my?.views?.length ? <ul className="view-log">{[...my.views].reverse().slice(0, 20).map((v, i) => <li key={i}><span className="mono">{short(v.account, 8, 4)}</span> <span className="muted tiny">{new Date(v.at).toLocaleString()}</span></li>)}</ul> : "Nobody yet"}</dd></>}
             <dt>On chain</dt><dd><Tx hash={d.check_tx} label="sealed" /> {d.settle_tx && <Tx hash={d.settle_tx} label="settled" />}</dd>
           </dl>
         </div>

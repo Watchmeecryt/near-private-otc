@@ -1,27 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@unlocalhosted/metalui";
-import { LockKey, ArrowsDownUp, Info } from "@phosphor-icons/react";
+import { LockKey, ArrowsDownUp } from "@phosphor-icons/react";
 import { Top, NeedSignIn } from "../app/Shell";
 import { useApp } from "../app/state";
 import { TOKENS, toUnits, fromUnits } from "@shared/otc.mjs";
 import { signedOffer, newDealId, balances } from "../lib/deal";
 import { api, type Terms } from "../lib/api";
-import { SignPanel, PrivacyNote, Pick } from "../components/ui";
+import { SignPanel, PrivacyNote, Pick, TokenIcon } from "../components/ui";
 import { usePrices, usd, marketOut, vsMarket, fmtPct, fmtUsd, roundSig } from "../lib/prices";
 
 const EXP: [string, number][] = [["1h", 3600e3], ["24h", 86400e3], ["7d", 7 * 86400e3]];
 const EXP_WORDS: Record<string, string> = { "1h": "1 hour", "24h": "24 hours", "7d": "7 days" };
 const tok = (id: string) => TOKENS.find((t: any) => t.id === id)!;
 const nice = (n: string) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 });
-/** Mirrors the enclave's public "band": quote = tUSDC before wNEAR before tETH; band on the quote amount. */
-function boardPreview(give: string, giveAmt: string, get: string, getAmt: string) {
-  const r = (id: string) => TOKENS.findIndex((t: any) => t.id === id);
-  const [quote, base, qAmt, side] = r(give) < r(get) ? [give, get, giveAmt, "Buying"] : [get, give, getAmt, "Selling"];
-  const w = Math.floor(Number(qAmt));
-  const band = w < 100 ? "under 100" : w < 1000 ? "100 – 1k" : w < 10000 ? "1k – 10k" : w < 100000 ? "10k – 100k" : "100k +";
-  return `${side} ${tok(base).symbol} for ${tok(quote).symbol} · roughly ${band} ${tok(quote).symbol}`;
-}
+/** What the public board shows: pair direction only (no amounts, no size range). */
+const boardPreview = (give: string, get: string) => `${tok(give).symbol} → ${tok(get).symbol}`;
 
 function TokenRow({ label, amount, setAmount, token, setToken, bal, hint, usdVal }: { label: string; amount: string; setAmount: (v: string) => void; token: string; setToken: (v: string) => void; bal?: string; hint?: React.ReactNode; usdVal?: number | null }) {
   const t = tok(token);
@@ -30,7 +24,7 @@ function TokenRow({ label, amount, setAmount, token, setToken, bal, hint, usdVal
       <div className="sr-top"><span>{label}</span>{bal !== undefined && label === "You sell" && <button type="button" className="sr-bal" onClick={() => setAmount(fromUnits(bal, t.decimals, 6))}>Balance {nice(fromUnits(bal, t.decimals, 6))} · Max</button>}</div>
       <div className="sr-main">
         <input className="sr-amt mono" inputMode="decimal" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value.replace(",", "."))} aria-label={`${label} amount`} />
-        <div className="sr-tok"><Pick label={`${label} token`} value={token} onChange={setToken} options={TOKENS.map((x: any) => ({ value: x.id, label: x.symbol, lead: <span className="tok-dot">{x.symbol.replace(/^[tw]/, "")[0]}</span> }))} /></div>
+        <div className="sr-tok"><Pick label={`${label} token`} value={token} onChange={setToken} options={TOKENS.map((x: any) => ({ value: x.id, label: x.symbol, lead: <TokenIcon t={x.symbol} size={20} /> }))} /></div>
       </div>
       {usdVal ? <div className="sr-usd">≈ {fmtUsd(usdVal)}</div> : null}
       {hint}
@@ -96,17 +90,24 @@ export default function Create() {
         </div>
         <div className="create-under">
           <div className="card card-pad summary">
-            <h3 className="h3">Summary</h3>
+            <div className="row-between"><h3 className="h3">Summary</h3>{terms && <span className="tiny muted">Expires in {expLabel}</span>}</div>
             {terms ? (
               <>
-                <p className="sum-line">You're offering <b>{nice(giveAmt)} {tok(give).symbol}</b> for <b>{nice(getAmt)} {tok(get).symbol}</b>. Expires in {expLabel}.{diff !== null && manual ? ` That is ${fmtPct(diff)} vs market.` : ""}</p>
-                <div className="sum-pub"><Info size={15} /> <span>The public board only shows: <b>{boardPreview(give, giveAmt, get, getAmt)}</b>, and the expiry. Exact amounts stay private.</span></div>
+                <div className="sum-grid">
+                  <div className="sum-cell"><span>You give</span><b className="mono"><TokenIcon t={tok(give).symbol} size={18} /> {nice(giveAmt)} {tok(give).symbol}</b></div>
+                  <div className="sum-cell"><span>You get</span><b className="mono"><TokenIcon t={tok(get).symbol} size={18} /> {nice(getAmt)} {tok(get).symbol}</b></div>
+                  <div className="sum-cell"><span>Vs market</span><b>{diff === null ? "n/a" : !manual ? "≈ market" : fmtPct(diff)}</b></div>
+                  <div className="sum-cell"><span>Board shows</span><b>{boardPreview(give, get)}</b></div>
+                </div>
+                <p className="sum-line">You're offering <b>{nice(giveAmt)} {tok(give).symbol}</b> for <b>{nice(getAmt)} {tok(get).symbol}</b>. Signed-in traders see only the pair and expiry; exact amounts stay private.</p>
               </>
             ) : <p className="muted small">Fill in what you give and what you want back. You'll see a plain-English summary here.</p>}
           </div>
-          {terms && <SignPanel kind="A trade instruction (NEAR Intents), kept sealed" terms={terms} deadline={deadline} gas="None. We pay the network fee when the trade settles." >
-            <p className="tiny muted">It only executes if someone signs the exact opposite trade. Keep the tokens in your Wallet until then.</p></SignPanel>}
-          <PrivacyNote />
+          <div className="under-cols">
+            {terms && <SignPanel kind="A trade instruction (NEAR Intents), kept sealed" terms={terms} deadline={deadline} gas="None. We pay the network fee when the trade settles." >
+              <p className="tiny muted">It only executes if someone signs the exact opposite trade. Keep the tokens in your Wallet until then.</p></SignPanel>}
+            <PrivacyNote />
+          </div>
         </div>
       </div>
     </>

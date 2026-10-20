@@ -1,3 +1,4 @@
+import { tokenById } from "@shared/otc.mjs";
 import { useEffect, useState, type ReactNode } from "react";
 import { Moon, Sun, ChatCenteredDots, Eye, EyeSlash, PenNib, Check } from "@phosphor-icons/react";
 import { fmt } from "../lib/deal";
@@ -38,11 +39,28 @@ export function SignPanel({ terms, deadline, kind, gas, children }: { terms?: Te
     </div>
   );
 }
+const ICON: Record<string, (k: string) => ReactNode> = {
+  tUSDC: (k) => <><circle cx="16" cy="16" r="16" fill="#2775CA" /><circle cx="16" cy="16" r="10.5" fill="none" stroke="#fff" strokeWidth="1.6" opacity=".55" /><path key={k} d="M17.2 9.6v1.6c1.6.2 2.8 1.1 3 2.6h-2c-.2-.7-.9-1.1-1.9-1.1-1.2 0-1.9.5-1.9 1.2 0 .8.7 1 2.3 1.4 2.3.5 3.7 1.2 3.7 3.2 0 1.6-1.2 2.6-3.2 2.9v1.6h-1.5v-1.6c-1.9-.2-3.2-1.2-3.4-2.9h2c.2.9 1 1.4 2.2 1.4 1.3 0 2-.5 2-1.3 0-.8-.6-1.1-2.3-1.5-2.2-.5-3.6-1.2-3.6-3.1 0-1.5 1.2-2.6 3-2.8V9.6z" fill="#fff" /></>,
+  wNEAR: (k) => <><circle cx="16" cy="16" r="16" fill="#111" /><path key={k} d="M20.6 9.2l-2.9 4.3c-.2.3.2.6.5.4l2.9-2.5c.1-.1.2 0 .2.1v7.7c0 .1-.2.2-.3.1L12.6 9.6c-.3-.3-.7-.5-1.1-.5h-.3c-.8 0-1.4.6-1.4 1.4v11c0 .8.6 1.4 1.4 1.4.5 0 .9-.3 1.2-.7l2.9-4.3c.2-.3-.2-.6-.5-.4l-2.9 2.5c-.1.1-.2 0-.2-.1v-7.7c0-.1.2-.2.3-.1l8.4 9.7c.3.3.7.5 1.1.5h.3c.8 0 1.4-.6 1.4-1.4v-11c0-.8-.6-1.4-1.4-1.4-.5 0-.9.3-1.2.7z" fill="#00EC97" /></>,
+  tETH: (k) => <><circle cx="16" cy="16" r="16" fill="#627EEA" /><path key={k} d="M16 5.5v7.8l6.6 2.9z" fill="#fff" opacity=".6" /><path d="M16 5.5L9.4 16.2l6.6-2.9z" fill="#fff" /><path d="M16 21.3v5.2l6.6-9.2z" fill="#fff" opacity=".6" /><path d="M16 26.5v-5.2l-6.6-4z" fill="#fff" /><path d="M16 20.1l6.6-3.9-6.6-2.9z" fill="#fff" opacity=".2" /><path d="M9.4 16.2l6.6 3.9v-6.8z" fill="#fff" opacity=".6" /></>,
+};
+const symId = (s: string) => s.replace(/^.*?(tUSDC|wNEAR|tETH).*$/, "$1");
+/** Inline SVG token mark (tUSDC, wNEAR, tETH); accepts a token id or symbol. */
+export function TokenIcon({ t, size = 28 }: { t: string; size?: number }) {
+  const k = tokenById(t)?.symbol || symId(t);
+  const draw = ICON[k];
+  return <svg className="tok-ico" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">{draw ? draw(k) : <circle cx="16" cy="16" r="16" fill="var(--brand)" />}</svg>;
+}
+/** Two overlapping token marks for a pair like "tETH/tUSDC". */
+export function PairIcon({ a, b, size = 40 }: { a: string; b: string; size?: number }) {
+  return <span className="pair-ico" style={{ width: size * 1.6, height: size }}><TokenIcon t={a} size={size} /><TokenIcon t={b} size={size} /></span>;
+}
+
 export function PrivacyNote() {
   return (
     <div className="privacy-note">
       <div><EyeSlash size={15} weight="bold" /> <b>Private</b> exact size, price, counter-offers, notes, unfilled deals. Sealed to the enclave; only the two parties can read them.</div>
-      <div><Eye size={15} weight="bold" /> <b>Public</b> pair, side, size band, expiry, status, and on settlement the two token transfers on NEAR.</div>
+      <div><Eye size={15} weight="bold" /> <b>Public</b> pair, side, expiry, status, number of counter-offers, and on settlement the two token transfers on NEAR.</div>
     </div>
   );
 }

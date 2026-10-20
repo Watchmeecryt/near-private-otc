@@ -143,3 +143,27 @@ html[data-theme="dark"] .exp-chips button.on { color: #1d1b18; }
 .mkt-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--soft-2); color: var(--text); margin-right: 6px; }
 .mkt-tag.up { background: var(--ok-wash, #e3f5ec); color: var(--ok); } .mkt-tag.down { background: var(--bad-wash, #fde8e8); color: var(--bad); }
 .rate-line { display: grid; gap: 2px; margin-top: 12px; padding: 10px 14px; border-radius: 14px; background: var(--soft); font-size: 13px; color: var(--text-2); }
+
+/* ---- board cards with token icons ---- */
+.tok-ico { flex: none; display: block; border-radius: 50%; }
+.pair-ico { position: relative; display: inline-block; flex: none; }
+.pair-ico .tok-ico { position: absolute; top: 0; box-shadow: 0 0 0 2px var(--surface, #fff); }
+.pair-ico .tok-ico:first-child { left: 0; z-index: 1; }
+.pair-ico .tok-ico:last-child { right: 0; }
+.board-card { min-height: 92px; padding: 20px 22px !important; gap: 16px; flex-wrap: nowrap; }
+.board-card .dr-main { flex: 1; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.bc-pair { display: flex; align-items: center; gap: 8px; font-size: 17px; }
+@media (max-width: 560px) { .board-card { flex-wrap: wrap; } .board-card .dr-meta { width: 100%; justify-content: flex-end; } }
+.view-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 180px; overflow: auto; }
+
+/* ---- New deal: wide, short summary area under the 480px swap card ---- */
+.create-col { max-width: 1040px; justify-items: center; }
+.create-col > .swap-card { width: 100%; max-width: 480px; }
+.create-under { width: 100%; }
+.sum-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 10px 0 12px; }
+.sum-cell { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--gold-wash); min-width: 0; }
+.sum-cell span { font-size: 12px; color: var(--muted, inherit); opacity: .8; }
+.sum-cell b { display: flex; align-items: center; gap: 6px; font-size: 14.5px; overflow-wrap: anywhere; }
+.summary .sum-line { font-size: 14.5px; margin: 0; }
+.under-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 760px) { .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

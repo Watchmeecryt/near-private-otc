@@ -10,7 +10,7 @@
 
 ## How it works
 
-1. **Post.** The maker picks pair, side, size and price. The browser builds a `token_diff` intent (−what I give, +what I get), the maker signs it (NEP-413, no gas), and the whole offer `{terms, note, signed intent}` is sealed (ECIES secp256k1 + AES-256-GCM) to the enclave's public key. The keeper relays the sealed blob to the enclave (`check`), which verifies the signed intent matches the sealed terms and publishes **only** pair, side, a size band and the deadline.
+1. **Post.** The maker picks pair, side, size and price. The browser builds a `token_diff` intent (−what I give, +what I get), the maker signs it (NEP-413, no gas), and the whole offer `{terms, note, signed intent}` is sealed (ECIES secp256k1 + AES-256-GCM) to the enclave's public key. The keeper relays the sealed blob to the enclave (`check`), which verifies the signed intent matches the sealed terms and publishes **only** pair, side and the deadline (the keeper drops the enclave's coarse size band and never serves it).
 2. **Request.** A signed-in taker taps *Request terms*. Their browser seals `{Privy access token, one-time public key, NEAR account, deal}` to the enclave. The enclave verifies the Privy token (ES256 against Privy JWKS), asks Privy from inside the TEE which NEAR wallets belong to that user, and re-seals the exact terms to the one-time browser key.
 3. **Negotiate.** *Accept*, *Counter* or *Decline*. Each counter is a new signed intent sealed to the enclave, readable only by the two parties named inside it.
 4. **Settle.** On *Accept*, the enclave (`settle`) checks the two signed intents are exact mirror images (same deal, opposite legs, equal amounts, different signers, addressed to each other) and releases them. The relayer dry-runs `simulate_intents` and calls `execute_intents` on our verifier. Both transfers happen in one transaction or not at all.
@@ -27,7 +27,7 @@
 
 | Public | Where |
 | --- | --- |
-| Pair, side, size band, expiry, status | Deal board (`/api/deals`) |
+| Pair, side, expiry, status, counter-offer count | Deal board (`/api/deals`, signed-in users only) |
 | Settled transfers (both signed intents, amounts, accounts) | NEAR testnet, via `execute_intents` |
 | That an OutLayer job ran (sealed input/output) | NEAR testnet (`outlayer.testnet`) |
 
@@ -108,3 +108,10 @@ Enclave rebuild: `PRIVY_APP_ID=... APP_ORIGIN=https://your-app cargo build --rel
 ## License
 
 MIT
+
+## Deal flow rules
+
+- The board and deal pages require a Privy sign-in. Cards show pair, status, expiry and counter-offer count only.
+- Any signed-in user can ask the enclave to reveal a deal's opening terms. Each reveal is logged per deal (account + time) and the maker sees that list on the deal page.
+- Many counterparties can counter the same deal in parallel; each sees only their own thread, the maker sees all and accepts one.
+- First settlement wins: the keeper serialises settlement per deal, and the verifier burns the NEP-413 nonces on execute, so every other accept fails with a clear "already settled" message and no funds move.
