@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useToast } from "@unlocalhosted/metalui";
-import { CheckCircle, ArrowsLeftRight, XCircle, Eye, Copy, Prohibit, Tag, ArrowClockwise, ChatsCircle, UsersThree, Info, LinkSimple, CaretDown } from "@phosphor-icons/react";
+import { CheckCircle, ArrowsLeftRight, XCircle, Eye, Prohibit, Tag, ArrowClockwise, UsersThree, LinkSimple, CaretDown, LockSimple, Globe } from "@phosphor-icons/react";
 import { NeedSignIn } from "../app/Shell";
 import { useApp } from "../app/state";
 import { api, type Coarse, type MyDeal, type Revealed, type Terms, type OfferMeta } from "../lib/api";
@@ -117,7 +117,7 @@ export default function Deal() {
             <div className="bb-terms"><TokenIcon t={sy(t.sell_token)} size={18} /> gives <b>{fmt(t.sell_token, t.sell_amount)}</b><span className="bb-dot">·</span><TokenIcon t={sy(t.buy_token)} size={18} /> gets <b>{fmt(t.buy_token, t.buy_amount)}</b></div>
             {o.r?.note && <div className="bb-note">“{o.r.note}”</div>}
             <div className="bb-foot"><Mkt t={t} /><span className={`bb-st ${st}`}>{st}</span>{o.at ? <span className="bb-time">{new Date(o.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span> : null}</div>
-          </>) : <div className="bb-terms muted">Sealed. Syncing…</div>}
+          </>) : <div className="bb-terms bb-sealed">Sealed — tap ↻ to open</div>}
         </div>
       </div>
     );
@@ -139,7 +139,7 @@ export default function Deal() {
           <div><span>Requests</span><b>{d.requests}</b></div>
           <div><span>Counters</span><b>{d.counters}</b></div>
         </div>
-        <div className="d2-row"><span className="chip chip-muted">{d.visibility === "private" ? "Private · link only" : "Public · on the board"}</span>{isMaker && d.visibility === "private" && live && <button className="btn btn-ghost btn-sm" onClick={publish}>Make public</button>}</div>
+        <div className="d2-row"><span className="chip chip-muted vis-chip">{d.visibility === "private" ? <><LockSimple size={13} weight="bold" /> Private · link only</> : <><Globe size={13} weight="bold" /> Public · on the board</>}</span>{isMaker && d.visibility === "private" && live && <button className="btn btn-ghost btn-sm" onClick={publish}><Globe size={14} /> Make public</button>}</div>
         {isMaker && <p className="tiny muted">{d.visibility === "private" ? "Not on the board. Making it public can't be undone." : "Public deals can't be made private again."}</p>}
         <div className="d2-row"><button className="btn btn-ghost btn-sm" onClick={share}><LinkSimple size={15} /> Copy link</button><span className="tiny muted mono">{location.host}/d/{id.slice(0, 8)}…</span></div>
         <div className="d2-row tiny"><span className="muted">On chain</span><Tx hash={d.check_tx} label="sealed" />{d.settle_tx && <Tx hash={d.settle_tx} label="settled" />}</div>
@@ -157,10 +157,10 @@ export default function Deal() {
 
       <section className="card d2-right">
         <div className="d2-tabs" role="tablist">
-          <button role="tab" className={tab === "talk" ? "on" : ""} onClick={() => setTab("talk")}><ChatsCircle size={16} /> Negotiation</button>
-          {isMaker && <button role="tab" className={tab === "req" ? "on" : ""} onClick={() => setTab("req")}><UsersThree size={16} /> Requests{pending > 0 && <span className="tab-badge">{pending}</span>}</button>}
-          <button role="tab" className={tab === "info" ? "on" : ""} onClick={() => setTab("info")}><Info size={16} /> Details</button>
-          {rev && <button className="icon-btn d2-refresh" title="Refresh" aria-label="Refresh private view" disabled={!!busy} onClick={() => doReveal(true)}><ArrowClockwise size={16} className={busy === "sync" ? "spin" : ""} /></button>}
+          <button role="tab" className={tab === "talk" ? "on" : ""} onClick={() => setTab("talk")}>Negotiation</button>
+          {isMaker && <button role="tab" className={tab === "req" ? "on" : ""} onClick={() => setTab("req")}>Requests{pending > 0 && <span className="tab-badge">{pending}</span>}</button>}
+          <button role="tab" className={tab === "info" ? "on" : ""} onClick={() => setTab("info")}>Details</button>
+          {rev && <button className="icon-btn d2-refresh" title="Refresh" aria-label="Refresh" disabled={!!busy} onClick={() => doReveal(true)}><ArrowClockwise size={16} weight="bold" className={busy === "sync" || busy.startsWith("Opening") ? "spin" : ""} /></button>}
         </div>
 
         {tab === "talk" && (!rev ? <div className="d2-body">{gate}</div> : (
@@ -204,7 +204,7 @@ export default function Deal() {
             {targetTerms ? <SignPanel kind="Mirror token_diff (NEAR Intents)" terms={mirror(targetTerms)} deadline={deadlineMs} gas="Paid by the Private OTC relayer (execute_intents)." /> : <SignPanel kind="token_diff intent (NEAR Intents), sealed" deadline={deadlineMs} gas="None. The relayer pays at settlement." />}
             <PrivacyNote />
             <div className="small"><b>How settlement works.</b> <span className="muted">Each side signs a token_diff intent. On Accept the enclave checks the two are exact mirror images and hands them to execute_intents on the verifier: both legs move in one transaction, or nothing moves. The first settlement wins; other replies fail cleanly.</span> <Link className="link" to="/app/how">More</Link></div>
-            <p className="tiny muted"><Copy size={12} /> Short link: <span className="mono">{location.host}/d/{id}</span></p>
+            <p className="tiny muted">Short link: <span className="mono">{location.host}/d/{id}</span></p>
           </div>
         )}
       </section>

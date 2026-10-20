@@ -250,3 +250,11 @@ html[data-theme="dark"] .bubble.theirs { --other: rgba(130, 168, 235, .16); bord
 .req-who { display: flex; gap: 8px; align-items: center; }
 .d2-info { gap: 18px; }
 @media (max-width: 640px) { .thread2 { height: 380px; } .bubble { max-width: 88%; } .d2-right { min-height: 0; } }
+/* Deal v2 sizing: readable, not oversized */
+.deal2 { font-size: 15px; }
+.deal2 .card-pad.d2-left { padding: 24px; }
+.d2-body { padding: 24px; }
+.bubble { font-size: 14.5px; }
+.vis-chip { display: inline-flex; align-items: center; gap: 5px; }
+.bb-sealed { font-style: italic; opacity: .75; font-size: 13.5px; }
+.d2-tabs > button[role=tab] { font-size: 14.5px; }
