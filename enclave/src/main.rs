@@ -3,7 +3,7 @@
 //! stdin JSON -> stdout JSON. Actions:
 //!   pubkey : the enclave's ECIES public key (secp256k1). Browsers seal deal offers to it.
 //!   check  : open one sealed offer, verify its signed NEAR Intents payload matches the sealed terms,
-//!            and return ONLY coarse public facts (pair, side, size band, deadline, parties).
+//!            and return ONLY coarse public facts (pair, side, deadline, parties; no size or price).
 //!   reveal : a signed-in party proves (via Privy, checked from inside the TEE) that they hold a NEAR
 //!            account; the enclave re-seals the exact terms of the offers that account may see to the
 //!            caller's one-time browser key. The opening offer is visible to any signed-in account;
@@ -120,18 +120,14 @@ fn offer(hexct: &str) -> Result<(String, Offer, String), String> {
     Ok((commit, o, deadline))
 }
 
-/// Coarse public facts: pair (base/quote), side, notional band in quote units.
+/// Coarse public facts: pair (base/quote), side and deadline only. No size or price hint of any kind.
 fn coarse(o: &Offer, deadline: &str) -> Result<Value, String> {
     let t = &o.terms;
     let rank = |id: &str| TOKENS.iter().position(|x| x.0 == id).unwrap_or(9);
     // quote = the lower-ranked token (tUSDC before wNEAR before tETH)
-    let (quote, base, side, qamt) = if rank(&t.sell_token) < rank(&t.buy_token) {
-        (&t.sell_token, &t.buy_token, "buy", amt(&t.sell_amount)?)
-    } else { (&t.buy_token, &t.sell_token, "sell", amt(&t.buy_amount)?) };
-    let (qs, qd) = token(quote)?; let (bs, _) = token(base)?;
-    let whole = qamt / 10u128.pow(qd);
-    let band = match whole { 0..=99 => "< 100", 100..=999 => "100 – 1k", 1000..=9_999 => "1k – 10k", 10_000..=99_999 => "10k – 100k", _ => "100k +" };
-    Ok(json!({ "deal": o.deal, "from": o.from, "to": o.to, "pair": format!("{bs}/{qs}"), "side": side, "band": format!("{band} {qs}"), "deadline": deadline }))
+    let (quote, base, side) = if rank(&t.sell_token) < rank(&t.buy_token) { (&t.sell_token, &t.buy_token, "buy") } else { (&t.buy_token, &t.sell_token, "sell") };
+    let (qs, _) = token(quote)?; let (bs, _) = token(base)?;
+    Ok(json!({ "deal": o.deal, "from": o.from, "to": o.to, "pair": format!("{bs}/{qs}"), "side": side, "deadline": deadline }))
 }
 
 fn run(input: Input) -> Result<Value, String> {

@@ -44,4 +44,4 @@ export async function balances(account: string): Promise<Record<string, string>>
   const r = await viewCall<string[]>(VERIFIER, "mt_batch_balance_of", { account_id: account, token_ids: ids });
   return Object.fromEntries(ids.map((id: string, i: number) => [id, r[i] || "0"]));
 }
-export const newDealId = () => { const a = "23456789abcdefghjkmnpqrstuvwxyz"; return Array.from(randomBytes(8), (b: number) => a[b % a.length]).join(""); };
+export const newDealId = () => { const a = "23456789abcdefghjkmnpqrstuvwxyz"; return Array.from(randomBytes(16), (b: number) => a[b % a.length]).join(""); };

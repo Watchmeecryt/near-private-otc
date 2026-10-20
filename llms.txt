@@ -1,6 +1,6 @@
 # NEAR Private OTC
 
-> Private OTC deal board on NEAR testnet. The board (signed-in users only) shows pair, side, expiry and counter-offer count only. Exact terms and counter-offers are sealed to an OutLayer TEE enclave and revealed only to signed-in parties. Matching NEP-413 signed token_diff intents settle atomically via execute_intents on a NEAR Intents verifier (otcdesk-intents.testnet).
+> Private OTC deal board on NEAR testnet. The board (signed-in users only) shows pair, side, expiry and counter-offer count only. Deals can be public (listed on the board) or private (link only, never listed; maker can switch private to public, not back). Expiry options: 2 min (demo), 1h, 24h, 7d, enforced by the verifier via the signed intent deadline. Exact terms and counter-offers are sealed to an OutLayer TEE enclave and revealed only to signed-in parties. Matching NEP-413 signed token_diff intents settle atomically via execute_intents on a NEAR Intents verifier (otcdesk-intents.testnet).
 
 ## Key facts
 - Verifier: otcdesk-intents.testnet (near/intents defuse v0.4.2 release wasm)

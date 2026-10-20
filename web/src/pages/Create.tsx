@@ -10,8 +10,8 @@ import { api, type Terms } from "../lib/api";
 import { SignPanel, PrivacyNote, Pick, TokenIcon } from "../components/ui";
 import { usePrices, usd, marketOut, vsMarket, fmtPct, fmtUsd, roundSig } from "../lib/prices";
 
-const EXP: [string, number][] = [["1h", 3600e3], ["24h", 86400e3], ["7d", 7 * 86400e3]];
-const EXP_WORDS: Record<string, string> = { "1h": "1 hour", "24h": "24 hours", "7d": "7 days" };
+const EXP: [string, number][] = [["2 min", 120e3], ["1h", 3600e3], ["24h", 86400e3], ["7d", 7 * 86400e3]];
+const EXP_WORDS: Record<string, string> = { "2 min": "2 minutes (demo)", "1h": "1 hour", "24h": "24 hours", "7d": "7 days" };
 const tok = (id: string) => TOKENS.find((t: any) => t.id === id)!;
 const nice = (n: string) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 });
 /** What the public board shows: pair direction only (no amounts, no size range). */
@@ -39,6 +39,7 @@ export default function Create() {
   const [get, setGet] = useState(TOKENS[1].id); const [getAmt, setGetAmt] = useState("");
   const [exp, setExp] = useState(EXP[1][1]); const [note, setNote] = useState("");
   const [manual, setManual] = useState(false);
+  const [vis, setVis] = useState<"public" | "private">("public");
   const prices = usePrices();
   const [busy, setBusy] = useState("");
   const [bal, setBal] = useState<Record<string, string> | null>(null);
@@ -65,8 +66,8 @@ export default function Create() {
       const deal = newDealId();
       const s = await signedOffer({ account, deal, to: "*", terms, deadlineMs: deadline, note });
       setBusy("Sealing privately (≈10 s)…");
-      await api("/api/deals", { ...s, account });
-      toast.show({ title: "Deal posted", sub: "Share the link; only takers who open it see your numbers.", tone: "success" });
+      await api("/api/deals", { ...s, account, visibility: vis });
+      toast.show({ title: vis === "private" ? "Private deal created" : "Deal posted", sub: vis === "private" ? "Not on the board. Copy the link and send it to your counterparty." : "Share the link; only takers who open it see your numbers.", tone: "success" });
       nav(`/app/d/${deal}`);
     } catch (e: any) { toast.show({ title: "Could not post", sub: e.message, tone: "error" }); } finally { setBusy(""); }
   };
@@ -84,6 +85,13 @@ export default function Create() {
           <div className="field" style={{ marginTop: 16 }}><span>Expires in</span>
             <div className="exp-chips">{EXP.map(([l, v]) => <button key={l} type="button" className={exp === v ? "on" : ""} onClick={() => setExp(v)}>{l}</button>)}</div>
           </div>
+          <div className="field"><span>Who can find it</span>
+            <div className="exp-chips vis-chips">
+              <button type="button" className={vis === "public" ? "on" : ""} onClick={() => setVis("public")}>Public</button>
+              <button type="button" className={vis === "private" ? "on" : ""} onClick={() => setVis("private")}>Private</button>
+            </div>
+            <p className="tiny muted" style={{ margin: "6px 0 0" }}>{vis === "public" ? "Listed on the deal board for every signed-in trader." : "Not listed anywhere. Only people you send the link to can open it. You can make it public later, but a public deal can't go back to private."}</p>
+          </div>
           <label className="field"><span>Private note <i className="muted">(optional)</i></span><input className="input" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. happy to split into two trades" /></label>
           <button className="btn btn-dark btn-full" disabled={!terms || !!busy} onClick={submit}><LockKey size={16} weight="bold" /> {busy || (terms ? "Sign & seal deal" : "Enter an amount to sell")}</button>
           <p className="tiny muted" style={{ marginTop: 10, textAlign: "center" }}>Free to post. No gas: you only sign a message.</p>
@@ -97,9 +105,9 @@ export default function Create() {
                   <div className="sum-cell"><span>You give</span><b className="mono"><TokenIcon t={tok(give).symbol} size={18} /> {nice(giveAmt)} {tok(give).symbol}</b></div>
                   <div className="sum-cell"><span>You get</span><b className="mono"><TokenIcon t={tok(get).symbol} size={18} /> {nice(getAmt)} {tok(get).symbol}</b></div>
                   <div className="sum-cell"><span>Vs market</span><b>{diff === null ? "n/a" : !manual ? "≈ market" : fmtPct(diff)}</b></div>
-                  <div className="sum-cell"><span>Board shows</span><b>{boardPreview(give, get)}</b></div>
+                  <div className="sum-cell"><span>Board shows</span><b>{vis === "private" ? "Nothing (private)" : boardPreview(give, get)}</b></div>
                 </div>
-                <p className="sum-line">You're offering <b>{nice(giveAmt)} {tok(give).symbol}</b> for <b>{nice(getAmt)} {tok(get).symbol}</b>. Signed-in traders see only the pair and expiry; exact amounts stay private.</p>
+                <p className="sum-line">You're offering <b>{nice(giveAmt)} {tok(give).symbol}</b> for <b>{nice(getAmt)} {tok(get).symbol}</b>. {vis === "private" ? "Not listed on the board: only people with your link can open it." : "Signed-in traders see only the pair and expiry on the board."} Exact amounts stay private.</p>
               </>
             ) : <p className="muted small">Fill in what you give and what you want back. You'll see a plain-English summary here.</p>}
           </div>

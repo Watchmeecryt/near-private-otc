@@ -1,5 +1,5 @@
 import { accessToken } from "./privy";
-export type Coarse = { id: string; pair: string; side: "buy" | "sell"; counters: number; deadline: string; status: string; created: number; settle_tx: string | null; check_tx: string };
+export type Coarse = { id: string; pair: string; side: "buy" | "sell"; counters: number; visibility: "public" | "private"; deadline: string; status: string; created: number; settle_tx: string | null; check_tx: string };
 export type OfferMeta = { id: string; kind: "open" | "counter" | "accept"; from: string; to: string; nonce: string; at: number; status: string; reply_to?: string; commitment: string; tx: string };
 export type MyDeal = Coarse & { role: "maker" | "taker"; my_status: string; offers: OfferMeta[]; requesters?: number; views?: { account: string; at: number }[] };
 export type Terms = { sell_token: string; sell_amount: string; buy_token: string; buy_amount: string };

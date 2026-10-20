@@ -4,7 +4,7 @@ import { FEATURES } from "../lib/features";
 import { VERIFIER, TOKENS, KEEPER, EXPLORER } from "@shared/otc.mjs";
 
 const STEPS = [
-  ["Post", "You pick pair, size and price. Your browser builds a token_diff intent, you sign it (NEP-413), and the whole offer is sealed to the enclave's public key. The enclave reads it once and publishes only pair, side and expiry."],
+  ["Post", "You pick pair, size and price. Your browser builds a token_diff intent, you sign it (NEP-413), and the whole offer is sealed to the enclave's public key. The enclave reads it once and publishes only pair, side and expiry (no size or price). Pick Public to list it on the board, or Private to share it only by link (you can make it public later, never the other way). Expiry can be 2 min (demo), 1h, 24h or 7d; the deadline sits inside your signed intent, so the NEAR Intents contract itself refuses it afterwards."],
   ["Request", "A taker signs in and taps Request. The enclave checks their Privy sign-in owns their NEAR account, then re-seals the exact terms to a one-time key in their browser."],
   ["Negotiate", "Accept, Counter or Decline. Each counter is a new signed intent sealed to the enclave and readable only by the two parties."],
   ["Settle", "On Accept the enclave checks both signed intents are exact mirror images and hands them to the relayer, which dry-runs simulate_intents and calls execute_intents. Both legs move in one transaction, or nothing moves."],

@@ -115,3 +115,18 @@ MIT
 - Any signed-in user can ask the enclave to reveal a deal's opening terms. Each reveal is logged per deal (account + time) and the maker sees that list on the deal page.
 - Many counterparties can counter the same deal in parallel; each sees only their own thread, the maker sees all and accepts one.
 - First settlement wins: the keeper serialises settlement per deal, and the verifier burns the NEP-413 nonces on execute, so every other accept fails with a clear "already settled" message and no funds move.
+
+## Public vs private deals
+
+- **Public** (default): listed on the board (`/api/deals`) for every signed-in user.
+- **Private**: never listed. It shows up only in the maker's My deals and at its share link `/d/<id>`. Deal ids are 16 random characters (about 79 bits), so the link can't be guessed. Any signed-in user with the link can open, reveal, counter and accept; there is no allowlist.
+- The maker can switch Private → Public (`POST /api/deals/:id/publish`). Public → Private is refused: once listed, others may already have seen it.
+- Where it's enforced: in the keeper API. No on-chain flag is needed. The verifier only ever executes two matching NEP-413 signed intents, and visibility only controls who can *find* a deal. The enclave reveals terms to any signed-in account that asks, so privacy rests on the link not being guessable, not on the chain.
+
+## Expiry
+
+Chips: **2 min (demo)**, 1h, 24h, 7d. The chosen time becomes the `deadline` inside the signed NEP-413 message, so the verifier itself (`otcdesk-intents.testnet`) refuses to execute after it. Counter-offers and accepts are signed with the deal's own deadline, and the keeper rejects any reply that outlives the deal. The keeper marks a deal Expired once its deadline passes. There is no minimum expiry; settlement takes about 10–20 s, so accept a 2-minute deal well before it runs out.
+
+## Enclave output
+
+The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `137501e48aee5d6667dc7d368274ea29b676d24e52580e8e8d4705f98ea16aaf` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.

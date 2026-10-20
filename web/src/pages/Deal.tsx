@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useToast } from "@unlocalhosted/metalui";
-import { CheckCircle, ArrowsLeftRight, XCircle, Eye, Copy, Prohibit, ShareNetwork } from "@phosphor-icons/react";
+import { CheckCircle, ArrowsLeftRight, XCircle, Eye, Copy, Prohibit } from "@phosphor-icons/react";
 import { Top, NeedSignIn } from "../app/Shell";
 import { useApp } from "../app/state";
 import { api, type Coarse, type MyDeal, type Revealed, type Terms, type OfferMeta } from "../lib/api";
@@ -76,18 +76,21 @@ export default function Deal() {
       toast.show({ title: "Deal cancelled", sub: `tx ${r.tx.slice(0, 10)}…`, tone: "success" }); load();
     } catch (e: any) { toast.show({ title: "Failed", sub: e.message, tone: "error" }); } finally { setBusy(""); }
   };
+  const publicDealStatus = d.status === "Open";
+  const publish = async () => { if (!confirm("Make this deal public? It will appear on the board, and it can't be made private again.")) return; try { await api(`/api/deals/${id}/publish`, { account: me }); toast.show({ title: "Deal is now public", tone: "success" }); load(); } catch (e: any) { toast.show({ title: "Failed", sub: e.message, tone: "error" }); } };
   const share = async () => { try { await navigator.clipboard.writeText(`${location.origin}/d/${id}`); toast.show({ title: "Link copied", sub: `${location.host}/d/${id}`, tone: "success" }); } catch {} };
 
   return (
     <>
       <Top title={`${d.side === "sell" ? "Selling" : "Buying"} ${d.pair.split("/")[0]}`} sub={`Deal ${id} · paid in ${d.pair.split("/")[1]}`}>
-        <button className="btn btn-ghost btn-sm" onClick={share}><ShareNetwork size={15} /> Share</button>
+        <button className="btn btn-ghost btn-sm" onClick={share}><Copy size={15} /> Copy link</button>
       </Top>
       <div className="deal-wrap">
         <div className="card card-pad">
           <Steps at={step} />
           <dl className="kv-mini" style={{ marginTop: 12 }}>
             <dt>Status</dt><dd><StatusChip s={my?.my_status || d.status} /></dd>
+            <dt>Visibility</dt><dd>{d.visibility === "private" ? <><span className="chip chip-muted">Private · link only</span>{isMaker && publicDealStatus && <button className="btn btn-ghost btn-sm" style={{ marginLeft: 8 }} onClick={publish}>Make public</button>}{isMaker && <p className="tiny muted" style={{ margin: "4px 0 0" }}>Not on the board. Anyone signed in with the link can open, counter or accept. Making it public can't be undone.</p>}</> : <><span className="chip chip-muted">Public · on the board</span>{isMaker && <p className="tiny muted" style={{ margin: "4px 0 0" }}>Public deals can't be made private again: others may already have seen it.</p>}</>}</dd>
             <dt>Counter-offers</dt><dd>{d.counters}</dd>
             <dt>Expires</dt><dd>{deadlineMs > now ? countdown(deadlineMs - now) : "ended"}</dd>
             {isMaker && <><dt>Viewed by</dt><dd>{my?.views?.length ? <ul className="view-log">{[...my.views].reverse().slice(0, 20).map((v, i) => <li key={i}><span className="mono">{short(v.account, 8, 4)}</span> <span className="muted tiny">{new Date(v.at).toLocaleString()}</span></li>)}</ul> : "Nobody yet"}</dd></>}

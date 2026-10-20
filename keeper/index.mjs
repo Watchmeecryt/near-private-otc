@@ -27,7 +27,7 @@ const save = () => { clearTimeout(saving); saving = setTimeout(() => fs.writeFil
 const expired = (d) => Date.parse(d.coarse.deadline) < Date.now();
 const publicStatus = (d) => d.status === "Settled" || d.status === "Cancelled" ? d.status : expired(d) ? "Expired" : "Open";
 const counterCount = (d) => d.offers.filter((o) => o.kind === "counter").length;
-const publicDeal = (d) => ({ id: d.id, pair: d.coarse.pair, side: d.coarse.side, deadline: d.coarse.deadline, status: publicStatus(d), counters: counterCount(d), created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
+const publicDeal = (d) => ({ id: d.id, pair: d.coarse.pair, side: d.coarse.side, deadline: d.coarse.deadline, status: publicStatus(d), counters: counterCount(d), visibility: d.visibility || "public", created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
 /** Status as seen by one account. */
 function myStatus(d, me) {
   const p = publicStatus(d); if (p !== "Open") return p;
@@ -100,7 +100,7 @@ async function prices() {
 const routes = [
   ["GET", /^\/api\/prices$/, async () => prices()],
   ["GET", /^\/api\/health$/, async () => ({ ok: true, keeper: KEEPER_ID, verifier: VERIFIER, deals: Object.keys(db.deals).length, relayer: !!keeper })],
-  ["GET", /^\/api\/deals$/, async (req) => (await who(req), Object.values(db.deals).sort((a, b) => b.created - a.created).map(publicDeal))],
+  ["GET", /^\/api\/deals$/, async (req) => (await who(req), Object.values(db.deals).filter((d) => d.visibility !== "private").sort((a, b) => b.created - a.created).map(publicDeal))],
   ["GET", /^\/api\/deals\/([\w]+)$/, async (req, [id]) => (await who(req), publicDeal(getDeal(id)))],
   ["GET", /^\/api\/my$/, async (req, _, url) => {
     const me = url.searchParams.get("account"); await who(req, me);
@@ -108,11 +108,13 @@ const routes = [
       .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined, views: d.maker === me ? (d.views || []) : undefined }));
   }],
   ["POST", /^\/api\/deals$/, async (req) => {
-    const { offer_ct, nonce, account: me } = await jbody(req); await who(req, me);
+    const { offer_ct, nonce, account: me, visibility } = await jbody(req); await who(req, me);
+    if (visibility && !["public", "private"].includes(visibility)) throw new HttpError(400, "visibility must be public or private");
     const c = await enclave(keeper, { action: "check", offers: [offer_ct] });
+    if (Date.parse(c.deadline) <= Date.now()) throw new HttpError(400, "That expiry is already in the past.");
     if (c.from !== me || c.to !== "*") throw new HttpError(400, "Opening offers must be signed by you and open to anyone.");
     if (db.deals[c.deal]) throw new HttpError(409, "Deal id taken, try again.");
-    const d = { id: c.deal, created: Date.now(), maker: me, status: "Open", requesters: [], check_tx: c.tx,
+    const d = { id: c.deal, created: Date.now(), maker: me, status: "Open", visibility: visibility || "public", requesters: [], check_tx: c.tx,
       coarse: { pair: c.pair, side: c.side, deadline: c.deadline },
       offers: [{ id: "o1", kind: "open", from: me, to: "*", nonce, at: Date.now(), status: "live", ct: offer_ct, commitment: c.commitment, tx: c.tx }] };
     db.deals[d.id] = d; save(); log("deal", d.id, c.pair);
@@ -131,6 +133,7 @@ const routes = [
     const prev = d.offers.find((o) => o.id === reply_to && o.status === "live");
     if (!prev) throw new HttpError(404, "That offer is no longer live.");
     const c = await enclave(keeper, { action: "check", offers: [offer_ct] });
+    if (Date.parse(c.deadline) > Date.parse(d.coarse.deadline)) throw new HttpError(400, "A reply cannot outlive the deal: use the deal's expiry.");
     if (c.from !== me || c.deal !== id || (prev.to !== "*" && prev.to !== me) || c.to !== prev.from) throw new HttpError(400, "Offer is not addressed correctly.");
     const o = { id: "o" + (d.offers.length + 1), kind: kind === "accept" ? "accept" : "counter", reply_to, from: me, to: prev.from, nonce, at: Date.now(), status: "live", ct: offer_ct, commitment: c.commitment, tx: c.tx };
     if (o.kind === "counter") {
@@ -151,6 +154,13 @@ const routes = [
     d.offers.forEach((x) => { if (x.status === "live") x.status = "closed"; });
     d.status = "Settled"; d.settle_tx = tx; d.settle_enclave_tx = s.tx; save(); log("settled", id, tx);
     return { settled: true, tx, enclave_tx: s.tx };
+  }],
+  ["POST", /^\/api\/deals\/(\w+)\/publish$/, async (req, [id]) => {
+    // One way only: private -> public. Once listed, others may have seen it, so it can't be hidden again.
+    const d = getDeal(id); const { account: me } = await jbody(req); await who(req, me);
+    if (d.maker !== me) throw new HttpError(403, "Only the maker can change visibility.");
+    if (d.visibility !== "private") throw new HttpError(409, "This deal is already public. Public deals can't be made private again.");
+    d.visibility = "public"; save(); log("publish", id); return publicDeal(d);
   }],
   ["POST", /^\/api\/deals\/(\w+)\/decline$/, async (req, [id]) => {
     const d = getDeal(id); const { offer_id, account: me } = await jbody(req); await who(req, me);

@@ -12,7 +12,7 @@ A deal board (signed-in users only) that shows only pair, side, expiry and count
 - Real-world money (email/Google sign-in, no wallet, relayer-paid gas).
 
 ## Features (implemented)
-1. Public deal board with coarse info only (no size range); requires a Privy sign-in.
+1. Public deal board with coarse info only (no size range); requires a Privy sign-in. Deals can be public (listed) or private (link only, 16-char unguessable id); private→public only. Expiry chips 2 min (demo), 1h, 24h, 7d; the deadline is inside the signed intent and enforced by the verifier. Enclave check output has no size or price info.
 2. Maker posts: signed token_diff + terms sealed to the enclave.
 3. Request terms: enclave verifies Privy sign-in owns the NEAR account, re-seals terms to a one-time browser key.
 4. Accept / Counter / Decline with step indicator; counters are new signed sealed intents.

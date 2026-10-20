@@ -23,7 +23,7 @@ export default function Mine() {
           {shown.map((d) => (
             <Link key={d.id} to={`/app/d/${d.id}`} className="card deal-row">
               <div className="dr-main"><span className={`side-tag ${d.side}`}>{d.role === "maker" ? "Maker" : "Taker"}</span><b>{d.pair}</b><span className="muted mono">{d.id}</span></div>
-              <div className="dr-meta"><span className="chip chip-muted">{d.counters} counter{d.counters === 1 ? "" : "s"}</span><StatusChip s={d.my_status} /><ArrowRight size={16} /></div>
+              <div className="dr-meta">{d.visibility === "private" && <span className="chip chip-muted">Private</span>}<span className="chip chip-muted">{d.counters} counter{d.counters === 1 ? "" : "s"}</span><StatusChip s={d.my_status} /><ArrowRight size={16} /></div>
             </Link>
           ))}
         </div>
