@@ -90,6 +90,10 @@ const near = (n) => BigInt(Math.round(n * 1e6)) * 10n ** 18n;
 async function faucet(accountId, symbol) {
   const t = tokenById(symbol); if (!t) throw new HttpError(400, "Unknown token");
   const amount = toUnits(t.faucet, t.decimals);
+  if (t.contract === "wrap.testnet") {
+    const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_account", finality: "final", account_id: KEEPER_ID } }) }).then((x) => x.json());
+    if (BigInt(r.result.amount) < BigInt(amount) + 5n * 10n ** 24n) throw new HttpError(503, "The wNEAR faucet is empty right now. Try tUSDC or tETH, or come back later.");
+  }
   if (t.contract === "wrap.testnet") await call(keeper, "wrap.testnet", "near_deposit", {}, { tgas: 30, deposit: amount });
   const o = await call(keeper, t.contract, "ft_transfer_call", { receiver_id: VERIFIER, amount, msg: accountId }, { tgas: 100, deposit: "1" });
   lastValue(o); return { tx: o.transaction.hash, amount, token: t.id };

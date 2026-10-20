@@ -103,7 +103,7 @@ Enclave rebuild: `PRIVY_APP_ID=... APP_ORIGIN=https://your-app cargo build --rel
 - The enclave trusts Privy's answer about which NEAR wallet belongs to a sign-in.
 - The keeper must stay online to relay; if OutLayer is down, reveal and settle wait.
 - The maker must keep enough balance in the verifier (the New deal form warns and links to the faucet); `simulate_intents` refuses an accept that would fail.
-- The Wallet shows balances, faucet and activity only. There is no deposit/withdraw UI: testnet tokens come from the faucet straight into the verifier.
+- Faucet (per sign-in, per token, 3 claims a day): 1000 tUSDC, 50 wNEAR, 0.5 tETH, credited straight into the verifier. The keeper wraps real testnet NEAR for wNEAR, so that faucet is limited by the keeper's NEAR balance and says so when empty. Email users have no deposit UI; NEAR wallet users get "Deposit from your wallet".
 
 ## License
 

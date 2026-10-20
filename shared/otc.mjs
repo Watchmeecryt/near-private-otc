@@ -9,7 +9,7 @@ export const ENCLAVE_PUBKEY = "03312dd677a5864ffc8cff352b7419b90896c9aee20e4f793
 export const EXPLORER = "https://testnet.nearblocks.io";
 export const TOKENS = [
   { id: "nep141:otcdesk-usdc.testnet", contract: "otcdesk-usdc.testnet", symbol: "tUSDC", decimals: 6, faucet: "1000" },
-  { id: "nep141:wrap.testnet", contract: "wrap.testnet", symbol: "wNEAR", decimals: 24, faucet: "0.2" },
+  { id: "nep141:wrap.testnet", contract: "wrap.testnet", symbol: "wNEAR", decimals: 24, faucet: "50" },
   { id: "nep141:otcdesk-eth.testnet", contract: "otcdesk-eth.testnet", symbol: "tETH", decimals: 18, faucet: "0.5" },
 ];
 export const tokenById = (id) => TOKENS.find((t) => t.id === id || t.contract === id || t.symbol === id);

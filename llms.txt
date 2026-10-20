@@ -21,3 +21,5 @@
 - GET /api/prices — reference USD prices (CoinGecko, cached 30 s)
 - GET /api/deals — public board
 - GET /api/deals/{id}
+
+Faucet: 1000 tUSDC, 50 wNEAR, 0.5 tETH per claim, 3 claims per token per day, credited straight into your verifier balance. One claim of any token clears the $200 request threshold at current prices.
