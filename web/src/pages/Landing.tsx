@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { ArrowRight, EyeSlash, Eye, Lightning, Handshake, Cpu, Storefront, ShieldCheck, Signature, ArrowsLeftRight, Clock, Wallet, GasPump, Fingerprint, Coins, MagnifyingGlass, Drop } from "@phosphor-icons/react";
 import { Logo, ThemeToggle } from "../components/ui";
 
@@ -20,9 +21,11 @@ const FEATS = [
   { t: "Dry-run first", d: "simulate_intents checks every match before gas is spent.", I: Coins },
 ];
 export default function Landing() {
+  const [sc, setSc] = useState(false);
+  useEffect(() => { const f = () => setSc(window.scrollY > 24); f(); addEventListener("scroll", f, { passive: true }); return () => removeEventListener("scroll", f); }, []);
   return (
     <div className="landing">
-      <header className="nav"><div className="wrap nav-in">
+      <header className={`nav ${sc ? "scrolled" : ""}`}><div className="wrap nav-in">
         <Logo />
         <nav className="nav-links"><a href="#how">How it works</a><a href="#privacy">Privacy</a><a href="#features">Features</a><Link to="/app/wallet#faucet">Faucet</Link></nav>
         <div className="nav-cta"><ThemeToggle className="icon-btn" /><Link to="/app" className="btn btn-dark btn-sm">Open the board</Link></div>

@@ -14,6 +14,10 @@ type Act = { kind: string; detail: string; tx: string; at: number };
 const actKey = (a: string) => `otc-activity-${a}`;
 const readActs = (a: string): Act[] => { try { return JSON.parse(localStorage.getItem(actKey(a)) || "[]"); } catch { return []; } };
 
+const claimKey = (a: string, s: string) => `otc-claim-${new Date().toISOString().slice(0, 10)}-${a}-${s}`;
+const claims = (a: string, s: string) => Number(localStorage.getItem(claimKey(a, s)) || 0);
+const bump = (a: string, s: string) => localStorage.setItem(claimKey(a, s), String(claims(a, s) + 1));
+
 export default function WalletPage() {
   const { account } = useApp();
   const toast = useToast();
@@ -31,7 +35,7 @@ export default function WalletPage() {
     try { setBusy(kind); const tx = await f(); record({ kind, detail, tx, at: Date.now() }); toast.show({ title: `${kind} done`, sub: detail, tone: "success" }); setTimeout(load, 1500); }
     catch (e: any) { toast.show({ title: `${kind} failed`, sub: e.message, tone: "error" }); } finally { setBusy(""); }
   };
-  const faucet = (t: any) => run("Faucet", `+${t.faucet} ${t.symbol}`, async () => (await api<any>("/api/faucet", { account, token: t.symbol })).tx);
+  const faucet = async (t: any) => { setBusy("Faucet:" + t.symbol); try { const r = await api<any>("/api/faucet", { account, token: t.symbol }); bump(account, t.symbol); record({ kind: "Faucet", detail: `+${t.faucet} ${t.symbol}`, tx: r.tx, at: Date.now() }); toast.show({ title: `+${t.faucet} ${t.symbol}`, sub: "Added to your balance", tone: "success" }); setTimeout(load, 1500); } catch (e: any) { if (/limit/i.test(e.message)) { localStorage.setItem(claimKey(account, t.symbol), "3"); setActs([...acts]); } toast.show({ title: "Faucet failed", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
   const deposit = () => run("Deposit", `${dep} NEAR → wNEAR`, () => sendTx(account, "wrap.testnet", [
     { method: "storage_deposit", args: { account_id: account, registration_only: true }, deposit: STORAGE, tgas: 10 },
     { method: "near_deposit", args: {}, deposit: toUnits(dep, 24), tgas: 10 },
@@ -57,9 +61,13 @@ export default function WalletPage() {
         <section className="card card-pad w-faucet" id="faucet">
           <h3 className="h3"><Drop size={18} weight="duotone" /> Faucet</h3>
           <p className="small muted">Free test tokens, deposited straight into your verifier balance. Limit: 3 claims per token per day.</p>
-          <div className="faucet-row">{TOKENS.map((t: any) => (
-            <button key={t.id} className="faucet-btn" disabled={!!busy} onClick={() => faucet(t)}><Drop size={18} weight="fill" /><b>+{t.faucet}</b><span>{t.symbol}</span></button>
-          ))}</div>
+          <div className="faucet-row">{TOKENS.map((t: any) => { const n = claims(account, t.symbol); const done = n >= 3; return (
+            <div key={t.id} className={`faucet-tile ${done ? "done" : ""}`}>
+              <span className="tok-ic">{t.symbol.replace(/^[tw]/, "").slice(0, 1)}</span>
+              <div className="ft-txt"><b>+{t.faucet}</b><span>{t.symbol}</span></div>
+              <span className="ft-lim">{n}/3 today</span>
+              <button className="btn btn-dark btn-sm ft-btn" disabled={!!busy || done} onClick={() => faucet(t)}>{busy === "Faucet:" + t.symbol ? "Claiming…" : done ? "Limit reached" : "Claim"}</button>
+            </div>); })}</div>
         </section>
         <section className="card card-pad">
           <h3 className="h3"><ArrowDown size={18} /> Deposit NEAR</h3>

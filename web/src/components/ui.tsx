@@ -9,7 +9,7 @@ export function Logo({ to = "/" }: { to?: string }) {
 }
 export function useTheme() {
   const [theme, setTheme] = useState<string>(() => document.documentElement.dataset.theme || "light");
-  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
+  useEffect(() => { const d = document.documentElement; d.dataset.theme = theme; d.dataset.muColorway = theme === "dark" ? "graphite" : "bone"; }, [theme]);
   return [theme, () => setTheme((t) => { const n = t === "dark" ? "light" : "dark"; try { localStorage.setItem("otc-theme-choice", n); } catch {} return n; })] as const;
 }
 export function ThemeToggle({ className = "icon-btn" }: { className?: string }) {
