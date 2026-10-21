@@ -4,14 +4,37 @@
 
 - **Live app:** https://near-private-otc-productio999n.up.railway.app
 - **Network:** NEAR testnet only (test tokens, no real value).
-- **Idea:** "Private OTC market using 'private deals' from NEAR Intents. Currently there is no way to find counter party unless you already know you are transacting with. Create a more open way to communicate what deals are open and allow people to fill them via NEAR Intents."
+- **Problem:** OTC traders can't find a counterparty unless they already know one, and posting size and price publicly leaks information.
 
-**Name:** NEAR Private OTC (short: Private OTC) says exactly what it is: an over-the-counter desk on NEAR where deal terms stay private.
+## Try it (do X - see Y)
+
+All steps run on the live app (https://near-private-otc-productio999n.up.railway.app) against NEAR testnet. Use two browsers (or a normal and a private window) for the maker and the taker.
+
+1. **Open https://near-private-otc-productio999n.up.railway.app/app without signing in** - see the public deal board: pair, side, expiry, status, request and counter-offer counts only. No size or price.
+2. **Sign in with email/Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet)** - see your NEAR account in the header; a new Privy implicit account is funded with 0.2 test NEAR.
+3. **Wallet -> Faucet -> claim tUSDC (and wNEAR or tETH)** - see the balance credited straight into your verifier balance on `otcdesk-intents.testnet`, with the transaction in Activity.
+4. **New deal -> pick pair, side, size, price -> choose Public or Private -> pick an expiry chip (2 min (demo), 1h, 24h, 7d) -> sign** - see the deal on the board (Public) or get a link-only `/d/<id>` URL (Private), with a NearBlocks link to the OutLayer `check` transaction. The board still shows no amounts.
+5. **As the taker, open the deal -> Request terms** - the keeper checks you hold at least $200 (CoinGecko) of the token the maker wants (wallet + verifier); without it you see "You need at least $200 in <token> to request deals."
+6. **As the maker, approve the request (or turn on auto-approve)** - the taker sees the sealed terms open: exact size, price and note, decrypted in their browser.
+7. **Counter, Decline or Accept in the deal thread** - each counter is a new signed intent sealed to the enclave; only the two parties see it.
+8. **Accept a live offer** - the enclave checks the two intents are exact mirror images, the relayer runs `simulate_intents` then `execute_intents`; see the deal turn Settled with a NearBlocks link, and both Wallet balances change.
+9. **Cancel an open deal (My deals)** - see the cancel transaction: empty intents re-use the offer nonces, so the old signatures can never settle.
+10. **`curl https://near-private-otc-productio999n.up.railway.app/api/deals`** - see JSON with pair, side, deadline, status, counts and tx hashes, and no amounts or prices.
+
+## Hackathon
+
+Built at NEAR HACKATHON 2026. Tracks:
+
+- `privacy` - exact terms and counter-offers are sealed to an OutLayer enclave running in Intel TDX (TEE); the operator never holds the key.
+- `defi` - OTC trading settled with NEAR Intents: `token_diff` intents, `simulate_intents`, atomic `execute_intents`, nonces and deadlines.
+- `realworld` - email/Google sign-in with no wallet needed, relayer-paid gas, stablecoin-style (tUSDC) settlement.
+
+Demo post: (added on Nov 1)
 
 ## How it works
 
 1. **Post.** The maker picks pair, side, size and price. The browser builds a `token_diff` intent (−what I give, +what I get), the maker signs it (NEP-413, no gas), and the whole offer `{terms, note, signed intent}` is sealed (ECIES secp256k1 + AES-256-GCM) to the enclave's public key. The keeper relays the sealed blob to the enclave (`check`), which verifies the signed intent matches the sealed terms and publishes **only** pair, side and the deadline (the keeper drops the enclave's coarse size band and never serves it).
-2. **Request.** A signed-in taker taps *Request terms*. Their browser seals `{Privy access token, one-time public key, NEAR account, deal}` to the enclave. The enclave verifies the Privy token (ES256 against Privy JWKS), asks Privy from inside the TEE which NEAR wallets belong to that user, and re-seals the exact terms to the one-time browser key.
+2. **Request.** A signed-in taker taps *Request terms*. The keeper checks they hold at least $200 (CoinGecko) of the token the maker wants (a fixed spam filter), and the maker approves the request (NEP-413 signed, or auto-approve). Their browser seals `{Privy access token, one-time public key, NEAR account, deal}` to the enclave. The enclave verifies the Privy token (ES256 against Privy JWKS), asks Privy from inside the TEE which NEAR wallets belong to that user, and re-seals the exact terms to the one-time browser key.
 3. **Negotiate.** *Accept*, *Counter* or *Decline*. Each counter is a new signed intent sealed to the enclave, readable only by the two parties named inside it.
 4. **Settle.** On *Accept*, the enclave (`settle`) checks the two signed intents are exact mirror images (same deal, opposite legs, equal amounts, different signers, addressed to each other) and releases them. The relayer dry-runs `simulate_intents` and calls `execute_intents` on our verifier. Both transfers happen in one transaction or not at all.
 5. **Expire / cancel.** Every intent carries a `deadline`. To cancel, the maker signs empty intents that re-use each live offer nonce; executing them marks those nonces used, so the old signatures can never settle.
@@ -80,7 +103,7 @@ Deployment transaction hashes: `deployments/private-otc.json`.
 enclave/   OutLayer WASI worker: pubkey / check / reveal / settle, Privy check from inside the TEE
 keeper/    Node server: deal read model, enclave relay, relayer (simulate + execute_intents), faucet, account funding, RPC proxy, serves web/dist
 shared/    otc.mjs: tokens, ECIES sealing, NEP-413 hashing/signing, unit helpers (browser + node)
-web/       Vite + React app (Privy sign-in): board, deal page, new deal, my deals, wallet (balances, faucet, activity), how it works
+web/       Vite + React app (Privy or NEAR wallet sign-in): board, deal page, new deal, my deals, wallet (balances, faucet, activity), how it works
 contracts/ pointers to the upstream wasm we deployed
 scripts/   deploy-near.mjs (verifier + tokens)
 ```
@@ -111,7 +134,7 @@ MIT
 
 ## Deal flow rules
 
-- The board and deal pages require a Privy sign-in. Cards show pair, status, expiry and counter-offer count only.
+- The board and deal pages are open to everyone without sign-in. Cards show pair, side, status, expiry, request and counter-offer counts only. Signing in (Privy email/Google or a NEAR wallet) is needed to post, request terms, counter or accept.
 - Terms are gated by **Request access** + **proof of funds** + **maker approval** (see below). Each reveal is still logged per deal (account + time) for the maker.
 - Many counterparties can counter the same deal in parallel; each sees only their own thread, the maker sees all and accepts one.
 - First settlement wins: the keeper serialises settlement per deal, and the verifier burns the NEP-413 nonces on execute, so every other accept fails with a clear "already settled" message and no funds move.
