@@ -6,6 +6,26 @@
 - **Network:** NEAR testnet only (test tokens, no real value).
 - **Problem:** OTC traders can't find a counterparty unless they already know one, and posting size and price publicly leaks information.
 
+## Contents
+
+- [Try it (do X - see Y)](#try-it-do-x---see-y)
+- [Hackathon](#hackathon)
+- [How it works](#how-it-works)
+- [Privacy model (honest version)](#privacy-model-honest-version)
+  - [How sealing works](#how-sealing-works)
+- [NEAR features used](#near-features-used)
+- [Deployed ids (testnet)](#deployed-ids-testnet)
+- [Repo map](#repo-map)
+- [Run locally](#run-locally)
+- [Limits](#limits)
+- [License](#license)
+- [Deal flow rules](#deal-flow-rules)
+- [Public vs private deals](#public-vs-private-deals)
+- [Expiry](#expiry)
+- [Enclave output](#enclave-output)
+- [Request access, proof of funds, maker approval](#request-access-proof-of-funds-maker-approval)
+- [Sign-in: Privy or a NEAR wallet](#sign-in-privy-or-a-near-wallet)
+
 ## Try it (do X - see Y)
 
 All steps run on the live app (https://near-private-otc-productio999n.up.railway.app) against NEAR testnet. Use two browsers (or a normal and a private window) for the maker and the taker.
