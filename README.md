@@ -8,6 +8,7 @@
 
 ## Contents
 
+- [Demo video](#demo-video)
 - [Try it (do X - see Y)](#try-it-do-x---see-y)
 - [Hackathon](#hackathon)
 - [How it works](#how-it-works)
@@ -25,6 +26,12 @@
 - [Enclave output](#enclave-output)
 - [Request access, proof of funds, maker approval](#request-access-proof-of-funds-maker-approval)
 - [Sign-in: Privy or a NEAR wallet](#sign-in-privy-or-a-near-wallet)
+
+## Demo video
+
+[![NEAR Private OTC demo](docs/demo-thumb.jpg)](docs/demo.mp4)
+
+[Watch the demo (3:36, with narration)](docs/demo.mp4)
 
 ## Try it (do X - see Y)
 
@@ -48,8 +55,6 @@ Built at NEAR HACKATHON 2026. Track:
 - `defi` - OTC trading settled with NEAR Intents: `token_diff` intents, `simulate_intents`, atomic `execute_intents`, nonces and deadlines.
 
 Privacy is a supporting feature, not a track: exact terms and counter-offers are sealed in an OutLayer enclave (Intel TDX); the operator never holds the key.
-
-Demo post: (added on Nov 1)
 
 ## How it works
 
