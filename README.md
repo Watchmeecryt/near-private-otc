@@ -31,7 +31,7 @@
 
 [![NEAR Private OTC demo](docs/demo-thumb.jpg)](docs/demo.mp4)
 
-[Watch the demo (3:36, with narration)](docs/demo.mp4)
+[Watch the demo (3:46, with narration)](docs/demo.mp4)
 
 ## Try it (do X - see Y)
 
