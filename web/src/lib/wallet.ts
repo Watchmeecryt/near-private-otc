@@ -72,8 +72,11 @@ export async function signNep413Wallet(message: string, recipient: string, nonce
 
 export type FnCall = { method: string; args: object; tgas?: number; deposit?: string };
 export async function walletTx(receiverId: string, calls: FnCall[]) {
+  // Wallet Selector v10 takes near-api-js Actions (borsh enum), not the old {type, params} objects.
+  const { actionCreators } = await import("@near-wallet-selector/core");
   const w: any = await activeWallet();
-  const out = await w.signAndSendTransaction({ receiverId, actions: calls.map((c) => ({ type: "FunctionCall", params: { methodName: c.method, args: c.args, gas: String(BigInt(c.tgas ?? 50) * 10n ** 12n), deposit: c.deposit ?? "0" } })) });
+  const actions = calls.map((c) => actionCreators.functionCall(c.method, c.args, BigInt(c.tgas ?? 50) * 10n ** 12n, BigInt(c.deposit ?? "0")));
+  const out = await w.signAndSendTransaction({ receiverId, actions });
   return out?.transaction?.hash as string | undefined;
 }
 /** Named accounts must register their signing key on the verifier once (implicit accounts don't). */
