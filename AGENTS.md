@@ -8,9 +8,8 @@ An open deal board (no sign-in needed) that shows only pair, side, expiry, statu
 
 ## Hackathon tracks
 Built at NEAR HACKATHON 2026.
-- `privacy`: TEE sealing (OutLayer, Intel TDX), private negotiation.
 - `defi`: NEAR Intents settlement (verifier, token_diff, execute_intents, simulate_intents, ft_withdraw, nonces, deadlines).
-- `realworld`: email/Google sign-in, no wallet needed, relayer-paid gas.
+- Privacy is a supporting feature, not a track: terms sealed in OutLayer TDX, private negotiation.
 
 ## Features (implemented)
 1. Public deal board with coarse info only (no size range); open to everyone without sign-in. Deals can be public (listed) or private (link only, 16-char unguessable id); private→public only. Expiry chips 2 min (demo), 1h, 24h, 7d; the deadline is inside the signed intent and enforced by the verifier. Enclave check output has no size or price info.

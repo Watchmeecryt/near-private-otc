@@ -43,11 +43,11 @@ All steps run on the live app (https://near-private-otc-productio999n.up.railway
 
 ## Hackathon
 
-Built at NEAR HACKATHON 2026. Tracks:
+Built at NEAR HACKATHON 2026. Track:
 
-- `privacy` - exact terms and counter-offers are sealed to an OutLayer enclave running in Intel TDX (TEE); the operator never holds the key.
 - `defi` - OTC trading settled with NEAR Intents: `token_diff` intents, `simulate_intents`, atomic `execute_intents`, nonces and deadlines.
-- `realworld` - email/Google sign-in with no wallet needed, relayer-paid gas, stablecoin-style (tUSDC) settlement.
+
+Privacy is a supporting feature, not a track: exact terms and counter-offers are sealed in an OutLayer enclave (Intel TDX); the operator never holds the key.
 
 Demo post: (added on Nov 1)
 
