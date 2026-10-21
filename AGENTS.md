@@ -34,7 +34,7 @@ Built at NEAR HACKATHON 2026.
 | tETH | otcdesk-eth.testnet |
 | wNEAR | wrap.testnet |
 | OutLayer project | otcdesk-enclave.testnet/private-otc |
-| Enclave wasm sha256 | 622cb3c80df5e01f04431fa853539457844efa6e17b9957cfd67599829f1d196 |
+| Enclave wasm sha256 | b0ccc5be19b8c037079cdf962586ac22f334f2743e797d89ddb252ad258aa377 |
 | Enclave pubkey | 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8 |
 | Live app | https://near-private-otc-productio999n.up.railway.app (`/api/health`) |
 

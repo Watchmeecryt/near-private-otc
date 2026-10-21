@@ -8,7 +8,6 @@
 
 ## Contents
 
-- [Demo video](#demo-video)
 - [Try it (do X - see Y)](#try-it-do-x---see-y)
 - [Hackathon](#hackathon)
 - [How it works](#how-it-works)
@@ -26,12 +25,6 @@
 - [Enclave output](#enclave-output)
 - [Request access, proof of funds, maker approval](#request-access-proof-of-funds-maker-approval)
 - [Sign-in: Privy or a NEAR wallet](#sign-in-privy-or-a-near-wallet)
-
-## Demo video
-
-[![NEAR Private OTC demo](docs/demo-thumb.jpg)](docs/demo.mp4)
-
-[Watch the demo (3:46, with narration)](docs/demo.mp4)
 
 ## Try it (do X - see Y)
 
@@ -123,7 +116,7 @@ Considered and skipped: chain signatures (no cross-chain leg needed on testnet),
 | tUSDC (6 dp) | `otcdesk-usdc.testnet` | https://testnet.nearblocks.io/address/otcdesk-usdc.testnet |
 | tETH (18 dp) | `otcdesk-eth.testnet` | https://testnet.nearblocks.io/address/otcdesk-eth.testnet |
 | wNEAR | `wrap.testnet` | https://testnet.nearblocks.io/address/wrap.testnet |
-| OutLayer project | `otcdesk-enclave.testnet/private-otc` | wasm sha256 `622cb3c8…d196` (`deployments/private-otc.json`) |
+| OutLayer project | `otcdesk-enclave.testnet/private-otc` | wasm sha256 `b0ccc5be…a377` (`deployments/private-otc.json`) |
 
 Deployment transaction hashes: `deployments/private-otc.json`.
 
@@ -147,7 +140,7 @@ set -a; . ./my.env; set +a
 npm --prefix web run build && node keeper/index.mjs   # http://127.0.0.1:8790
 ```
 
-Enclave rebuild: `PRIVY_APP_ID=... APP_ORIGIN=https://your-app cargo build --release --target wasm32-wasip2` in `enclave/`, then `outlayer upload` + `outlayer deploy private-otc <url>`.
+Enclave rebuild: `PRIVY_APP_ID=cmvi99u1e01os0il20daip5mv APP_ORIGIN=https://your-app cargo build --release --target wasm32-wasip2` in `enclave/`, then `outlayer upload` + `outlayer deploy private-otc <url>`.
 
 ## Limits
 
@@ -182,7 +175,7 @@ Chips: **2 min (demo)**, 1h, 24h, 7d. The chosen time becomes the `deadline` ins
 
 ## Enclave output
 
-The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `6f6fb0338367928f5018b073b080be02c95ebae20a299f6759bc396d0b4db63e` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
+The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `b0ccc5be19b8c037079cdf962586ac22f334f2743e797d89ddb252ad258aa377` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
 
 ## Request access, proof of funds, maker approval
 

@@ -7,7 +7,7 @@ RUN cd web && npm install --no-audit --no-fund
 COPY shared shared
 COPY keeper keeper
 COPY web web
-ARG VITE_PRIVY_APP_ID
+ARG VITE_PRIVY_APP_ID=cmvi99u1e01os0il20daip5mv
 ENV VITE_PRIVY_APP_ID=$VITE_PRIVY_APP_ID
 RUN cd web && npx vite build && rm -rf node_modules
 ENV NODE_ENV=production
