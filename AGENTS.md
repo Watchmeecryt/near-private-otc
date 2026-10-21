@@ -19,7 +19,8 @@ Built at NEAR HACKATHON 2026.
 5. Atomic settlement: enclave checks exact mirror match → simulate_intents → execute_intents.
 6. Expiry via deadline; cancel via nonce burn (empty intents re-using offer nonces).
 7. My deals with statuses Open, Requested, Countered, Settled, Expired, Cancelled; short links `/d/<id>`.
-8. Wallet: intents balances, faucet (tUSDC, wNEAR, tETH straight into the verifier, 3 claims/token/day), activity. No deposit/withdraw UI (the API keeps an advanced ft_withdraw relay).
+8. Wallet: intents balances with an explainer line, faucet (tUSDC, wNEAR, tETH straight into the verifier, 3 claims/token/day), Deposit from your wallet (NEAR-wallet sign-ins only), Withdraw for everyone (Privy and wallet users: token + amount + Max, signed `ft_withdraw` intent to your own account relayed via `/api/withdraw`; registers token storage with `storage_deposit` first if needed; wNEAR arrives as wNEAR), activity.
+   Testnet trust note: the verifier `otcdesk-intents.testnet` is our own unmodified copy of NEAR Intents defuse v0.4.2, and its super-admin is `otcdesk.testnet` (the operator). So on testnet the operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official `intents.near`. Deposits and withdrawals are public on chain, and settled trades are visible on chain; open deal terms stay sealed.
 9. New deal warns when the sold token's balance is too low and links to the faucet.
 10. Keeper funds new Privy implicit accounts with 0.2 test NEAR (up to 3 top-ups per sign-in while the account doesn't exist).
 11. "What you're signing" panel before every signature; privacy note on deal pages; How it works page.

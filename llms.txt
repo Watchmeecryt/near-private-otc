@@ -14,7 +14,9 @@
 - [Board](/app): open deals (coarse info)
 - [New deal](/app/new)
 - [My deals](/app/mine)
-- [Wallet](/app/wallet): balances, faucet (tUSDC, tETH, wNEAR), activity
+- [Wallet](/app/wallet): verifier balances, faucet (tUSDC, tETH, wNEAR), deposit from your wallet (NEAR-wallet sign-ins), withdraw to your own NEAR account (everyone, signed ft_withdraw intent), activity
+- Balances are held in the NEAR Intents verifier. Deposits and withdrawals are public on chain, and settled trades are visible on chain; open deal terms stay sealed.
+- Testnet trust note: the verifier otcdesk-intents.testnet is our own unmodified copy of NEAR Intents defuse v0.4.2, and its super-admin is otcdesk.testnet (the operator). So on testnet the operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official intents.near.
 - [How it works](/app/how): flow, privacy, every NEAR feature used
 
 ## API

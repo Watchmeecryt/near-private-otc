@@ -39,14 +39,15 @@ All steps run on the live app (https://near-private-otc-productio999n.up.railway
 
 1. **Open https://near-private-otc-productio999n.up.railway.app/app without signing in** - see the public deal board: pair, side, expiry, status, request and counter-offer counts only. No size or price.
 2. **Sign in with email/Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet)** - see your NEAR account in the header; a new Privy implicit account is funded with 0.2 test NEAR.
-3. **Wallet -> Faucet -> claim tUSDC (and wNEAR or tETH)** - see the balance credited straight into your verifier balance on `otcdesk-intents.testnet`, with the transaction in Activity.
+3. **Wallet -> Faucet -> claim tUSDC (and wNEAR or tETH)** - see the balance credited straight into your verifier balance on `otcdesk-intents.testnet`, with the transaction in Activity. Balances shown are held in the NEAR Intents verifier: deposit to trade, withdraw to move them back to your wallet.
 4. **New deal -> pick pair, side, size, price -> choose Public or Private -> pick an expiry chip (2 min (demo), 1h, 24h, 7d) -> sign** - see the deal on the board (Public) or get a link-only `/d/<id>` URL (Private), with a NearBlocks link to the OutLayer `check` transaction. The board still shows no amounts.
 5. **As the taker, open the deal -> Request terms** - the keeper checks you hold at least $200 (CoinGecko) of the token the maker wants (wallet + verifier); without it you see "You need at least $200 in <token> to request deals."
 6. **As the maker, approve the request (or turn on auto-approve)** - the taker sees the sealed terms open: exact size, price and note, decrypted in their browser.
 7. **Counter, Decline or Accept in the deal thread** - each counter is a new signed intent sealed to the enclave; only the two parties see it.
 8. **Accept a live offer** - the enclave checks the two intents are exact mirror images, the relayer runs `simulate_intents` then `execute_intents`; see the deal turn Settled with a NearBlocks link, and both Wallet balances change.
-9. **Cancel an open deal (My deals)** - see the cancel transaction: empty intents re-use the offer nonces, so the old signatures can never settle.
-10. **`curl https://near-private-otc-productio999n.up.railway.app/api/deals`** - see JSON with pair, side, deadline, status, counts and tx hashes, and no amounts or prices.
+9. **Wallet -> Withdraw -> pick a token, tap Max or type an amount -> Sign & withdraw** (any sign-in) - see a success toast with the NearBlocks tx, the verifier balance drop and the tokens arrive in your own NEAR account. The first withdrawal of a token registers storage (`storage_deposit`, 0.00125 NEAR) on your account.
+10. **Cancel an open deal (My deals)** - see the cancel transaction: empty intents re-use the offer nonces, so the old signatures can never settle.
+11. **`curl https://near-private-otc-productio999n.up.railway.app/api/deals`** - see JSON with pair, side, deadline, status, counts and tx hashes, and no amounts or prices.
 
 ## Hackathon
 
@@ -62,7 +63,8 @@ Privacy is a supporting feature, not a track: exact terms and counter-offers are
 2. **Request.** A signed-in taker taps *Request terms*. The keeper checks they hold at least $200 (CoinGecko) of the token the maker wants (a fixed spam filter), and the maker approves the request (NEP-413 signed, or auto-approve). Their browser seals `{Privy access token, one-time public key, NEAR account, deal}` to the enclave. The enclave verifies the Privy token (ES256 against Privy JWKS), asks Privy from inside the TEE which NEAR wallets belong to that user, and re-seals the exact terms to the one-time browser key.
 3. **Negotiate.** *Accept*, *Counter* or *Decline*. Each counter is a new signed intent sealed to the enclave, readable only by the two parties named inside it.
 4. **Settle.** On *Accept*, the enclave (`settle`) checks the two signed intents are exact mirror images (same deal, opposite legs, equal amounts, different signers, addressed to each other) and releases them. The relayer dry-runs `simulate_intents` and calls `execute_intents` on our verifier. Both transfers happen in one transaction or not at all.
-5. **Expire / cancel.** Every intent carries a `deadline`. To cancel, the maker signs empty intents that re-use each live offer nonce; executing them marks those nonces used, so the old signatures can never settle.
+5. **Deposit / withdraw.** The faucet (everyone) and *Deposit from your wallet* (NEAR-wallet sign-ins) move tokens into the verifier with `ft_transfer_call`. *Withdraw* (everyone) signs an `ft_withdraw` intent to your own account; the keeper relays it with `execute_intents`. Both are public on chain.
+6. **Expire / cancel.** Every intent carries a `deadline`. To cancel, the maker signs empty intents that re-use each live offer nonce; executing them marks those nonces used, so the old signatures can never settle.
 
 ## Privacy model (honest version)
 
@@ -77,9 +79,12 @@ Privacy is a supporting feature, not a track: exact terms and counter-offers are
 | --- | --- |
 | Pair, side, expiry, status, request and counter-offer counts | Deal board (`/api/deals`, open to everyone; private deals are not listed) |
 | Settled transfers (both signed intents, amounts, accounts) | NEAR testnet, via `execute_intents` |
+| Deposits and withdrawals (account, token, amount) | NEAR testnet (`ft_transfer_call`, `ft_withdraw`) |
 | That an OutLayer job ran (sealed input/output) | NEAR testnet (`outlayer.testnet`) |
 
 What the operator (keeper) sees: sealed blobs, the coarse facts above, and *which accounts* requested or countered a deal (it needs this to route messages). It never holds the enclave key, so it cannot read terms or counters. Who viewed a deal is hidden from the public, not from the operator. We say so in the app.
+
+Testnet trust note: the verifier `otcdesk-intents.testnet` is our own unmodified copy of NEAR Intents defuse v0.4.2, and its super-admin is `otcdesk.testnet` (the operator). So on testnet the operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official `intents.near`.
 
 ### How sealing works
 
@@ -98,8 +103,8 @@ What the operator (keeper) sees: sealed blobs, the coarse facts above, and *whic
 | NEP-413 signing | Intents are NEP-413 payloads (recipient = our verifier) signed with the Privy-held ed25519 key via raw-hash signing | [NEP-413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md), [Signing intents](https://docs.near-intents.org/integration/verifier-contract/signing-intents) |
 | Implicit accounts | 64-hex accounts; the verifier trusts the implicit key without `add_public_key` | [Account abstraction](https://docs.near-intents.org/integration/verifier-contract/account-abstraction) |
 | Deadlines & nonces | Expiry via `deadline`; cancel by burning nonces with empty intents (v0.4.2 has no separate invalidate call) | [Signing intents](https://docs.near-intents.org/integration/verifier-contract/signing-intents) |
-| `ft_transfer_call` deposits | The faucet credits test tokens straight into the user's verifier balance with `msg = account` (the API also relays signed `ft_withdraw` intents as an advanced, UI-less option) | [Deposits](https://docs.near-intents.org/integration/verifier-contract/deposits-and-withdrawals/deposits), [Withdrawals](https://docs.near-intents.org/integration/verifier-contract/deposits-and-withdrawals/withdrawals) |
-| Storage deposits (NEP-145) | Verifier pre-registered on every token, so faucet deposits need no user setup | [Storage](https://docs.near.org/smart-contracts/anatomy/storage) |
+| `ft_transfer_call` deposits | The faucet credits test tokens straight into the user's verifier balance with `msg = account` ; NEAR-wallet users deposit from their wallet. Everyone withdraws with a signed `ft_withdraw` intent (Wallet -> Withdraw), relayed by the keeper | [Deposits](https://docs.near-intents.org/integration/verifier-contract/deposits-and-withdrawals/deposits), [Withdrawals](https://docs.near-intents.org/integration/verifier-contract/deposits-and-withdrawals/withdrawals) |
+| Storage deposits (NEP-145) | Verifier pre-registered on every token, so deposits need no user setup; the first withdrawal of a token calls `storage_deposit` on the user's account | [Storage](https://docs.near.org/smart-contracts/anatomy/storage) |
 | Relayer-paid gas | `otcdesk.testnet` submits `execute_intents`; signing a deal costs the user nothing | [Meta-transactions](https://docs.near.org/chain-abstraction/meta-transactions) |
 | OutLayer TEE + yield/resume | Sealed terms, reveal and matching run in Intel TDX; called on chain | [OutLayer](https://outlayer.fastnear.com) |
 | NEP-141 tokens & wNEAR | `tUSDC`, `tETH` (upstream FT wasm), `wrap.testnet` | [FT](https://docs.near.org/primitives/ft) |
@@ -128,7 +133,7 @@ Deployment transaction hashes: `deployments/private-otc.json`.
 enclave/   OutLayer WASI worker: pubkey / check / reveal / settle, Privy check from inside the TEE
 keeper/    Node server: deal read model, enclave relay, relayer (simulate + execute_intents), faucet, account funding, RPC proxy, serves web/dist
 shared/    otc.mjs: tokens, ECIES sealing, NEP-413 hashing/signing, unit helpers (browser + node)
-web/       Vite + React app (Privy or NEAR wallet sign-in): board, deal page, new deal, my deals, wallet (balances, faucet, activity), how it works
+web/       Vite + React app (Privy or NEAR wallet sign-in): board, deal page, new deal, my deals, wallet (balances, faucet, deposit, withdraw, activity), how it works
 contracts/ pointers to the upstream wasm we deployed
 scripts/   deploy-near.mjs (verifier + tokens)
 ```
@@ -147,11 +152,11 @@ Enclave rebuild: `PRIVY_APP_ID=... APP_ORIGIN=https://your-app cargo build --rel
 ## Limits
 
 - **No partial fills.** One signed listing fills once at the exact size. Makers can post several smaller deals as tranches. (A token_diff is all-or-nothing; partial fills would need the maker to pre-sign every possible fraction.)
-- Testnet only, our own verifier copy (not `intents.near`). One keeper, one enclave deployment.
+- Testnet only, our own verifier copy (not `intents.near`). One keeper, one enclave deployment. Testnet trust note: the verifier `otcdesk-intents.testnet` is our own unmodified copy of NEAR Intents defuse v0.4.2, and its super-admin is `otcdesk.testnet` (the operator). So on testnet the operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official `intents.near`.
 - The enclave trusts Privy's answer about which NEAR wallet belongs to a sign-in.
 - The keeper must stay online to relay; if OutLayer is down, reveal and settle wait.
 - The maker must keep enough balance in the verifier (the New deal form warns and links to the faucet); `simulate_intents` refuses an accept that would fail.
-- Faucet (per sign-in, per token, 3 claims a day): 1000 tUSDC, 50 wNEAR, 0.5 tETH, credited straight into the verifier. The keeper wraps real testnet NEAR for wNEAR, so that faucet is limited by the keeper's NEAR balance and says so when empty. Email users have no deposit UI; NEAR wallet users get "Deposit from your wallet".
+- Faucet (per sign-in, per token, 3 claims a day): 1000 tUSDC, 50 wNEAR, 0.5 tETH, credited straight into the verifier. The keeper wraps real testnet NEAR for wNEAR, so that faucet is limited by the keeper's NEAR balance and says so when empty. Email users have no deposit UI (faucet only); NEAR wallet users get "Deposit from your wallet". Everyone gets "Withdraw" back to their own NEAR account (Privy implicit accounts included).
 
 ## License
 
@@ -197,7 +202,7 @@ Limits: the's account appears in the OutLayer job input on chain, sealed, but th
 - **Email or Google (Privy):** a NEAR implicit account is created for you; signing is silent (Privy raw-hash signing).
 - **NEAR wallets (NEAR Wallet Selector v10):** Meteor, HOT, Intear, HERE, MyNearWallet, Ledger. Log in by signing a NEP-413 message `{otc_login: account, ts}` for recipient `near-private-otc`. The keeper (`POST /api/auth/wallet`) checks the ed25519 signature and that the key is a full-access key of the account (or the implicit account itself), then issues a 24 h session. The enclave re-checks the same signed login itself.
 - Trading signs `token_diff` intents with the wallet's `signMessage` (recipient = verifier). Named accounts register their key on the verifier once (`add_public_key`, 1 yoctoNEAR, prompted automatically).
-- Deposits: Wallet → "Deposit from your wallet" sends `ft_transfer_call` to the verifier (NEAR is wrapped with `near_deposit` in the same transaction).
+- Deposits: Wallet → "Deposit from your wallet" sends `ft_transfer_call` to the verifier (NEAR is wrapped with `near_deposit` in the same transaction). Withdraw (all sign-ins): a signed `ft_withdraw` intent relayed by the keeper; wNEAR arrives as wNEAR.
 
 | Wallet | Connect | Sign-in / requests / trades (signMessage) | Deposits |
 |---|---|---|---|

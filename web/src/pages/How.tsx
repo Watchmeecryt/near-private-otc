@@ -20,7 +20,8 @@ export default function How() {
           <li>The operator's relayer sees <i>who</i> requests or counters a deal (account ids), never the terms.</li>
           <li>At settlement both signed intents become public on NEAR, like any settled trade.</li>
           <li>One signed listing fills once (no partial fills). Post several smaller deals as tranches.</li>
-          <li>Testnet only. Our own verifier copy, not the mainnet intents.near.</li></ul></div>
+          <li>Deposits and withdrawals are public on chain; open deal terms stay sealed.</li>
+          <li>Testnet only. The verifier is our own unmodified copy of NEAR Intents defuse v0.4.2; its super-admin is otcdesk.testnet (the operator), so on testnet the operator could in theory upgrade it or move balances. Mainnet settlement would use the official intents.near.</li></ul></div>
         <h3 className="h3" style={{ marginTop: 8 }}>NEAR features used</h3>
         {FEATURES.map(([t, d, l]) => <div key={t} className="card card-pad feat"><b>{t}</b><p className="small muted">{d}</p><a className="link tiny" href={l} target="_blank" rel="noreferrer">Docs ↗</a></div>)}
         <div className="card card-pad"><h3 className="h3">Contracts (testnet)</h3><ul className="small mono bullets">
