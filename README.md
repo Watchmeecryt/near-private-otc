@@ -2,7 +2,7 @@
 
 **A private OTC deal board on NEAR.** Post a deal with a sealed size and price, let strangers find it, negotiate privately, and settle both sides in one atomic NEAR Intents call.
 
-- **Live app:** https://near-private-otc-production.up.railway.app
+- **Live app:** https://near-private-otc-productio999n.up.railway.app
 - **Network:** NEAR testnet only (test tokens, no real value).
 - **Idea:** "Private OTC market using 'private deals' from NEAR Intents. Currently there is no way to find counter party unless you already know you are transacting with. Create a more open way to communicate what deals are open and allow people to fill them via NEAR Intents."
 
@@ -129,7 +129,7 @@ Chips: **2 min (demo)**, 1h, 24h, 7d. The chosen time becomes the `deadline` ins
 
 ## Enclave output
 
-The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `1b9862020a7a0e13b809880d6022e6e636712731b325f424a60d108345da1760` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
+The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `6f6fb0338367928f5018b073b080be02c95ebae20a299f6759bc396d0b4db63e` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
 
 ## Request access, proof of funds, maker approval
 

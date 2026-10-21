@@ -8,7 +8,7 @@ use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 pub const ISSUER: &str = "privy.io";
 pub const APP_ID: &str = env!("PRIVY_APP_ID");
 /// Privy's client API requires an allowed Origin; this is the app's own origin.
-pub const APP_ORIGIN: &str = match option_env!("APP_ORIGIN") { Some(o) => o, None => "https://near-private-otc-production.up.railway.app" };
+pub const APP_ORIGIN: &str = match option_env!("APP_ORIGIN") { Some(o) => o, None => "https://near-private-otc-productio999n.up.railway.app" };
 
 pub fn near_wallets(token: &str) -> Result<Vec<String>, String> {
     let parts: Vec<&str> = token.split('.').collect();

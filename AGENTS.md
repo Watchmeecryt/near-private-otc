@@ -35,7 +35,7 @@ An open deal board (no sign-in needed) that shows only pair, side, expiry, statu
 | OutLayer project | otcdesk-enclave.testnet/private-otc |
 | Enclave wasm sha256 | 622cb3c80df5e01f04431fa853539457844efa6e17b9957cfd67599829f1d196 |
 | Enclave pubkey | 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8 |
-| Live app | https://near-private-otc-production.up.railway.app (`/api/health`) |
+| Live app | https://near-private-otc-productio999n.up.railway.app (`/api/health`) |
 
 ## Claim → code
 | Claim | Where |
