@@ -1,8 +1,8 @@
 import { authToken } from "./signer";
 import { walletCanSign, walletApiLogin } from "./wallet";
-export type Coarse = { id: string; pair: string; side: "buy" | "sell"; counters: number; requests: number; auto_approve: boolean; visibility: "public" | "private"; deadline: string; status: string; created: number; settle_tx: string | null; check_tx: string };
+export type Coarse = { id: string; pair: string; side: "buy" | "sell"; counters: number; requests: number; auto_approve: boolean; visibility: "public" | "private"; deadline: string; status: string; created: number; settle_tx: string | null; check_tx: string; views?: number; viewers?: number; viewer_seeds?: string[] };
 export type OfferMeta = { id: string; kind: "open" | "counter" | "accept"; from: string; to: string; nonce: string; at: number; status: string; reply_to?: string; commitment: string; tx: string };
-export type MyDeal = Omit<Coarse, never> & { role: "maker" | "taker"; my_status: string; offers: OfferMeta[]; requesters?: number; views?: { account: string; at: number }[]; request_list?: Req[]; my_request?: Partial<Req> };
+export type MyDeal = Omit<Coarse, never> & { role: "maker" | "taker"; my_status: string; offers: OfferMeta[]; requesters?: number; view_log?: { account: string; at: number }[]; request_list?: Req[]; my_request?: Partial<Req> };
 export type Req = { account: string; at: number; status: "pending" | "approved" | "declined"; auto?: boolean; tx?: string };
 export type Terms = { sell_token: string; sell_amount: string; buy_token: string; buy_amount: string };
 export type Revealed = { commitment: string; from: string; to: string; terms: Terms; note: string; deadline: string };

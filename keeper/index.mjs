@@ -2,6 +2,7 @@
 // faucet, implicit-account funding, RPC proxy, and the web app. It stores only sealed offer blobs plus the
 // coarse facts the enclave chose to publish; it never holds the enclave key, so it cannot read terms.
 import http from "node:http";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { account, call, view, lastValue, RPC } from "./chain.mjs";
@@ -29,7 +30,17 @@ const save = () => { clearTimeout(saving); saving = setTimeout(() => fs.writeFil
 const expired = (d) => Date.parse(d.coarse.deadline) < Date.now();
 const publicStatus = (d) => d.status === "Settled" || d.status === "Cancelled" ? d.status : expired(d) ? "Expired" : "Open";
 const counterCount = (d) => d.offers.filter((o) => o.kind === "counter").length;
-const publicDeal = (d) => ({ id: d.id, pair: d.coarse.pair, side: d.coarse.side, deadline: d.coarse.deadline, status: publicStatus(d), counters: counterCount(d), requests: (d.requests || []).length, auto_approve: !!d.auto, visibility: d.visibility || "public", created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
+// Public viewer summary: total views, unique viewers, and up to 5 anonymous avatar seeds
+// (HMAC of deal id + account with a server-only salt), so no account id is exposed and
+// seeds can't be linked across deals or brute-forced from guessable NEAR names.
+const VIEW_SALT = process.env.VIEW_SALT || (() => { const f = path.join(DATA, "view_salt"); try { return fs.readFileSync(f, "utf8").trim(); } catch { const x = crypto.randomBytes(32).toString("hex"); fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(f, x, { mode: 0o600 }); return x; } })();
+const viewSummary = (d) => {
+  const v = d.views || []; const last = new Map();
+  for (const x of v) last.set(x.account, Math.max(last.get(x.account) || 0, x.at));
+  const uniq = [...last.entries()].sort((a, b) => b[1] - a[1]);
+  return { views: v.length, viewers: uniq.length, viewer_seeds: uniq.slice(0, 5).map(([a]) => crypto.createHmac("sha256", VIEW_SALT).update(d.id + ":" + a).digest("hex").slice(0, 16)) };
+};
+const publicDeal = (d) => ({ ...viewSummary(d),  id: d.id, pair: d.coarse.pair, side: d.coarse.side, deadline: d.coarse.deadline, status: publicStatus(d), counters: counterCount(d), requests: (d.requests || []).length, auto_approve: !!d.auto, visibility: d.visibility || "public", created: d.created, settle_tx: d.settle_tx || null, check_tx: d.check_tx });
 /** Status as seen by one account. */
 function myStatus(d, me) {
   const p = publicStatus(d); if (p !== "Open") return p;
@@ -136,7 +147,7 @@ const routes = [
   ["GET", /^\/api\/my$/, async (req, _, url) => {
     const me = url.searchParams.get("account"); await who(req, me);
     return Object.values(db.deals).filter((d) => d.maker === me || d.requesters.includes(me) || !!reqOf(d, me) || d.offers.some((o) => o.from === me || o.to === me))
-      .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined, views: d.maker === me ? (d.views || []) : undefined,
+      .sort((a, b) => b.created - a.created).map((d) => ({ ...publicDeal(d), role: d.maker === me ? "maker" : "taker", my_status: myStatus(d, me), offers: thread(d, me), requesters: d.maker === me ? d.requesters.length : undefined, view_log: d.maker === me ? (d.views || []) : undefined,
         request_list: d.maker === me ? (d.requests || []).map(({ approval, ...q }) => q) : undefined, my_request: d.maker === me ? undefined : (({ approval, ...q }) => q)(reqOf(d, me) || {}) }));
   }],
   ["POST", /^\/api\/deals$/, async (req) => {

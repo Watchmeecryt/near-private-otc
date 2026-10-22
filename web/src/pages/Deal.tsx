@@ -99,8 +99,8 @@ export default function Deal() {
   if (!d) return <div className="card card-pad muted">Loading… (or this deal does not exist)</div>;
   const [b, q] = d.pair.split("/"); const [mGive, mGet] = d.side === "sell" ? [b, q] : [q, b];
   // Unique viewers, deduped, newest first.
-  const viewers = Object.values((my?.views || []).reduce((m: Record<string, { account: string; n: number; last: number }>, v) => { const x = m[v.account] ||= { account: v.account, n: 0, last: 0 }; x.n++; x.last = Math.max(x.last, v.at); return m; }, {})).sort((a, b) => b.last - a.last);
-  const totalViews = (my?.views || []).length;
+  const viewers = Object.values((my?.view_log || []).reduce((m: Record<string, { account: string; n: number; last: number }>, v) => { const x = m[v.account] ||= { account: v.account, n: 0, last: 0 }; x.n++; x.last = Math.max(x.last, v.at); return m; }, {})).sort((a, b) => b.last - a.last);
+  const totalViews = (my?.view_log || []).length;
 
   const Mkt = ({ t }: { t: Terms }) => { const x = vsMarket(prices, t.sell_token, human(t.sell_token, t.sell_amount), t.buy_token, human(t.buy_token, t.buy_amount)); return x === null ? null : <span className={`mkt-tag ${Math.abs(x) < 0.5 ? "" : x > 0 ? "up" : "down"}`}>{fmtPct(x)} vs market</span>; };
   const Bubble = ({ o }: { o: Row }) => {

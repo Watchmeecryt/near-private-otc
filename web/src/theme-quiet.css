@@ -258,3 +258,18 @@ html[data-theme="dark"] .bubble.theirs { --other: rgba(130, 168, 235, .16); bord
 .vis-chip { display: inline-flex; align-items: center; gap: 5px; }
 .bb-sealed { font-style: italic; opacity: .75; font-size: 13.5px; }
 .d2-tabs > button[role=tab] { font-size: 14.5px; }
+
+/* Deal page: settle cards below the header; wider summary card so the stepper fits on one line. */
+.deal2 { margin-top: clamp(28px, 5vw, 64px); }
+@media (min-width: 1080px) { .deal2 { grid-template-columns: minmax(0, 440px) minmax(0, 1fr); } .d2-left { top: 64px; } .d2-left .steps-mini { flex-wrap: nowrap; white-space: nowrap; } }
+.page-narrow:has(> .deal2) { max-width: 1240px; }
+/* Board / My deals rows: wider and a bit taller, with a viewer stack. */
+.deal-list { max-width: 1100px; }
+.board-card { min-height: 104px; padding: 24px 26px !important; }
+.viewers-inline { display: inline-flex; align-items: center; gap: 8px; margin-right: 4px; }
+.av-stack { display: inline-flex; align-items: center; }
+.av-stack > .persona, .av-stack > .av-more { margin-left: -8px; box-shadow: 0 0 0 2px var(--bg, #fff); border-radius: 50%; }
+.av-stack > :first-child { margin-left: 0; }
+.av-more { height: 26px; min-width: 26px; padding: 0 6px; display: inline-grid; place-items: center; font-size: 11px; font-weight: 600; background: var(--soft-2, #eee); color: inherit; border-radius: 13px !important; }
+.vw-count { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 760px) { .board-card .dr-meta { flex-wrap: wrap; } }

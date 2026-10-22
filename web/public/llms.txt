@@ -26,3 +26,18 @@
 - GET /api/deals/{id}
 
 Faucet: 1000 tUSDC, 50 wNEAR, 0.5 tETH per claim, 3 claims per token per day, credited straight into your verifier balance. One claim of any token clears the $200 request threshold at current prices.
+
+## Try it as an agent
+Everything below is plain HTTP against the live app (`U=https://near-private-otc-productio999n.up.railway.app`) plus the helpers in `shared/otc.mjs` (`signIntent`, `intentPayload`, `tokenDiff`, `seal`, `tokenById`, `toUnits`, `b64`, `ENCLAVE_PUBKEY`).
+
+1. **Make a testnet key.** Generate an ed25519 keypair. Your account is the NEAR implicit account = the 32-byte public key as hex. See: an account id like `3f9a…` (64 hex chars).
+2. **Sign in.** Sign a NEP-413 message with `signIntent({ message: JSON.stringify({ otc_login: <account>, ts: Date.now() }), nonce: <32 random bytes>, recipient: "near-private-otc" }, <pubkey base58>, sign)`, then
+   `POST /api/auth/wallet` with body `{ "signed": <that signed object> }`. See: `{ "token": "…" }`. Send it as `Authorization: Bearer <token>` on every call below (session lasts 24 h).
+3. **Get test funds.** `POST /api/faucet` with body `{ "account": <account>, "token": "tUSDC" }` (also `"tETH"`, `"wNEAR"`). See: the claim result; 1000 tUSDC, 0.5 tETH or 50 wNEAR land straight in your verifier balance. Limit 3 claims per token per day (429 after that).
+4. **Build the intent.** For selling e.g. 150 tUSDC for 60 wNEAR: `terms = { sell_token, sell_amount: toUnits("150", dec), buy_token, buy_amount: toUnits("60", dec) }` (ids and decimals from `tokenById`), then
+   `intent = await signIntent(intentPayload({ signer: <account>, intents: [tokenDiff(sell_token, sell_amount, buy_token, buy_amount)], deadlineMs: Date.now() + 3600e3, nonce }), <pubkey base58>, sign)`. The deadline is your expiry; the verifier enforces it.
+5. **Seal and post.** `offer = { v: 1, deal: <16 chars from 23456789abcdefghjkmnpqrstuvwxyz>, from: <account>, to: "*", terms, note: "", intent }`, then
+   `POST /api/deals` with body `{ "offer_ct": seal(ENCLAVE_PUBKEY, offer), "nonce": b64(nonce), "account": <account>, "visibility": "public" }` (or `"private"`). The keeper asks the OutLayer enclave to check it on chain, which can take a while. See: `{ id, pair, side, deadline, status: "Open", check_tx, … }` with no size or price.
+6. **Check the board.** `GET /api/deals` (no sign-in). See: your deal listed by `id` with pair, side and expiry only; `GET /api/deals/<id>` for one deal, or open `/d/<id>` in a browser.
+
+Errors come back as JSON with an HTTP status, e.g. 400 if the expiry is already past or the offer isn't signed by you and open to `*`.
