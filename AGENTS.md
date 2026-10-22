@@ -36,7 +36,7 @@ Built at NEAR HACKATHON 2026.
 | OutLayer project | otcdesk-enclave.testnet/private-otc |
 | Enclave wasm sha256 | 1b9862020a7a0e13b809880d6022e6e636712731b325f424a60d108345da1760 (rolled back: OutLayer workers never picked up requests for later builds 6f6fb033…1c19fcec, which timed out; this build carries an older Privy app id/origin) |
 | Enclave pubkey | 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8 |
-| Live app | https://near-private-otc-productio999n.up.railway.app (`/api/health`) |
+| App | `<APP_URL>` (link in the submission form) or `http://127.0.0.1:8790` locally (`/api/health`) |
 
 ## Claim → code
 | Claim | Where |
@@ -53,7 +53,7 @@ Built at NEAR HACKATHON 2026.
 `GET /api/health`, `GET /api/prices` (CoinGecko reference, 30 s cache), `GET /api/deals`, `GET /api/deals/:id`, `GET /api/my?account=` (Privy bearer), `POST /api/deals`, `POST /api/deals/:id/{reveal,offer,decline,cancel}`, `POST /api/withdraw`, `POST /api/faucet`, `POST /api/fund`, `POST /api/rpc`.
 
 ## Try it as an agent
-Everything below is plain HTTP against the live app (`U=https://near-private-otc-productio999n.up.railway.app`) plus the helpers in `shared/otc.mjs` (`signIntent`, `intentPayload`, `tokenDiff`, `seal`, `tokenById`, `toUnits`, `b64`, `ENCLAVE_PUBKEY`).
+Everything below is plain HTTP against the app (`U=<APP_URL>`, the link in the submission form, or `http://127.0.0.1:8790` for a local run) plus the helpers in `shared/otc.mjs` (`signIntent`, `intentPayload`, `tokenDiff`, `seal`, `tokenById`, `toUnits`, `b64`, `ENCLAVE_PUBKEY`).
 
 1. **Make a testnet key.** Generate an ed25519 keypair. Your account is the NEAR implicit account = the 32-byte public key as hex. See: an account id like `3f9a…` (64 hex chars).
 2. **Sign in.** Sign a NEP-413 message with `signIntent({ message: JSON.stringify({ otc_login: <account>, ts: Date.now() }), nonce: <32 random bytes>, recipient: "near-private-otc" }, <pubkey base58>, sign)`, then

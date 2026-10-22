@@ -28,7 +28,7 @@
 Faucet: 1000 tUSDC, 50 wNEAR, 0.5 tETH per claim, 3 claims per token per day, credited straight into your verifier balance. One claim of any token clears the $200 request threshold at current prices.
 
 ## Try it as an agent
-Everything below is plain HTTP against the live app (`U=https://near-private-otc-productio999n.up.railway.app`) plus the helpers in `shared/otc.mjs` (`signIntent`, `intentPayload`, `tokenDiff`, `seal`, `tokenById`, `toUnits`, `b64`, `ENCLAVE_PUBKEY`).
+Everything below is plain HTTP against the site serving this file (`U=` its origin; paths below are relative to it) plus the helpers in `shared/otc.mjs` (`signIntent`, `intentPayload`, `tokenDiff`, `seal`, `tokenById`, `toUnits`, `b64`, `ENCLAVE_PUBKEY`).
 
 1. **Make a testnet key.** Generate an ed25519 keypair. Your account is the NEAR implicit account = the 32-byte public key as hex. See: an account id like `3f9a…` (64 hex chars).
 2. **Sign in.** Sign a NEP-413 message with `signIntent({ message: JSON.stringify({ otc_login: <account>, ts: Date.now() }), nonce: <32 random bytes>, recipient: "near-private-otc" }, <pubkey base58>, sign)`, then
