@@ -175,7 +175,7 @@ Chips: **2 min (demo)**, 1h, 24h, 7d. The chosen time becomes the `deadline` ins
 
 ## Enclave output
 
-The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `1c19fcec8b19af4cd3ee64e7eea5474be32c24e6b210c49eddc636e9b48d09ec` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
+The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `1b9862020a7a0e13b809880d6022e6e636712731b325f424a60d108345da1760` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
 
 ## Request access, proof of funds, maker approval
 
