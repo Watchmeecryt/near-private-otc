@@ -124,7 +124,7 @@ export default function Deal() {
   };
 
   const gate = !me ? <NeedSignIn what="Sign in to request the exact terms." />
-    : !canSign ? <p className="wallet-note">This wallet can't sign messages here. Connect Meteor, HOT, Intear, HERE or MyNearWallet, or sign in with email.</p>
+    : !canSign ? <p className="wallet-note">This wallet can't sign messages here. Connect Meteor, HOT, Intear, HERE or MyNearWallet, or sign in with Google.</p>
     : (isMaker || myReq === "approved") ? <div className="gate"><Eye size={26} weight="duotone" /><p>{isMaker ? "Your terms are sealed in the enclave." : "The maker approved you."} Open them in this browser; nobody else can read them.</p><button className="btn btn-dark" disabled={!!busy} onClick={() => doReveal()}>{busy || (isMaker ? "Open my deal" : "Open the terms")}</button></div>
     : myReq === "pending" ? <div className="gate"><UsersThree size={26} weight="duotone" /><p>Request sent. You passed the $200 check; waiting for the maker to approve you.</p></div>
     : <div className="gate"><Eye size={26} weight="duotone" /><p>{myReq === "declined" ? "The maker declined your last request. You can ask again." : <>Request access to see the exact terms. You need at least <b>$200 in {mGet}</b> (Private OTC or wallet) — a spam filter, the same for every deal. {d.auto_approve ? "This maker auto-approves." : "Then the maker approves you."}</>}</p><button className="btn btn-dark" disabled={!!busy || !live} onClick={doRequest}>{busy || "Request terms"}</button></div>;

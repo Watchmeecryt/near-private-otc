@@ -59,8 +59,8 @@ export function NeedSignIn({ what }: { what: string }) {
   return (
     <div className="card empty">
       <span className="icon-chip" style={{ margin: "0 auto" }}><EnvelopeSimple size={22} weight="duotone" /></span>
-      <h3>Sign in with email, Google or a NEAR wallet</h3>
-      <p>{what} Email or Google gives you a NEAR testnet account automatically (no seed phrase). Or connect Meteor, HOT, Intear, HERE, MyNearWallet or Ledger.</p>
+      <h3>Sign in with Google or a NEAR wallet</h3>
+      <p>{what} Google gives you a NEAR testnet account automatically (no seed phrase). Or connect Meteor, HOT, Intear, HERE, MyNearWallet or Ledger.</p>
       <button className="btn btn-dark" onClick={() => login().catch(() => {})}>Sign in</button>
     </div>
   );

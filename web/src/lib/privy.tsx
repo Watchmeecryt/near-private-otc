@@ -1,4 +1,4 @@
-// Privy is the only sign-in (email code or Google). Every user gets a NEAR testnet implicit account
+// Privy is the only sign-in (Google). Every user gets a NEAR testnet implicit account
 // held by Privy (ed25519). We use raw-hash signing for both NEAR transactions and NEP-413 intents.
 import { PrivyProvider, useLogin, useLogout, usePrivy, getAccessToken } from "@privy-io/react-auth";
 import { useCreateWallet, useSignRawHash } from "@privy-io/react-auth/extended-chains";
@@ -25,7 +25,7 @@ function BridgeInner() {
   const { createWallet } = useCreateWallet();
   const { signRawHash } = useSignRawHash();
   const prev = useRef("");
-  B.cur = { ready, authenticated, user, login: () => login({ loginMethods: ["email", "google"] }), logout, createWallet: createWallet as any, signRawHash: signRawHash as any };
+  B.cur = { ready, authenticated, user, login: () => login({ loginMethods: ["google"] }), logout, createWallet: createWallet as any, signRawHash: signRawHash as any };
   useEffect(() => {
     if (ready) B.waiters.splice(0).forEach((f) => f());
     const k = `${ready}|${authenticated}|${user?.id}|${nearWalletOf(user)}|`;
@@ -37,7 +37,7 @@ function BridgeInner() {
 export function AuthRoot({ children }: { children: ReactNode }) {
   if (!PRIVY_APP_ID) return <>{children}</>;
   return (
-    <PrivyProvider appId={PRIVY_APP_ID} config={{ loginMethods: ["email", "google"], appearance: { theme: (document.documentElement.dataset.theme === "dark" ? "dark" : "light") as any, accentColor: "#a65f0c", showWalletLoginFirst: false, landingHeader: "Sign in to Private OTC", loginMessage: "Continue with Google, or enter your email for a one-time code." }, embeddedWallets: { showWalletUIs: false, ethereum: { createOnLogin: "off" }, solana: { createOnLogin: "off" } } } as any}>
+    <PrivyProvider appId={PRIVY_APP_ID} config={{ loginMethods: ["google"], appearance: { theme: (document.documentElement.dataset.theme === "dark" ? "dark" : "light") as any, accentColor: "#a65f0c", showWalletLoginFirst: false, landingHeader: "Sign in to Private OTC", loginMessage: "Continue with Google." }, embeddedWallets: { showWalletUIs: false, ethereum: { createOnLogin: "off" }, solana: { createOnLogin: "off" } } } as any}>
       <BridgeInner />{children}
     </PrivyProvider>
   );

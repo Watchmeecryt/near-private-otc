@@ -46,7 +46,7 @@ export function AppState({ children }: { children: ReactNode }) {
         <div className="signin-back" onClick={close}>
           <div className="card card-pad signin-modal" role="dialog" aria-modal="true" aria-label="Sign in" onClick={(e) => e.stopPropagation()}>
             <div className="row-between"><h3 className="h3">Sign in to Private OTC</h3><button className="icon-btn" onClick={close} aria-label="Close"><X size={16} /></button></div>
-            <button className="signin-opt" disabled={!!busy} onClick={viaPrivy}><EnvelopeSimple size={22} weight="duotone" /><span><b>Email or Google</b><small>We create a NEAR testnet account for you. No wallet needed.</small></span></button>
+            <button className="signin-opt" disabled={!!busy} onClick={viaPrivy}><EnvelopeSimple size={22} weight="duotone" /><span><b>Google</b><small>We create a NEAR testnet account for you. No wallet needed.</small></span></button>
             <button className="signin-opt" disabled={!!busy} onClick={viaWallet}><Wallet size={22} weight="duotone" /><span><b>{busy === "wallet" ? "Waiting for your wallet…" : "Connect NEAR wallet"}</b><small>{WALLETS.map((w) => w.name).join(", ")}. You'll sign one message to log in.</small></span></button>
             {err && <p className="sr-hint err">{err}</p>}
             <p className="tiny muted">Ledger can connect and deposit, but can't sign trade messages here.</p>

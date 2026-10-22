@@ -15,7 +15,7 @@ const FEATS = [
   { t: "Private counter-offers", d: "Accept / Counter / Decline, readable only by the two parties.", I: Handshake },
   { t: "No gas to trade", d: "You sign NEP-413 messages; the relayer pays for settlement.", I: GasPump },
   { t: "Expiry & cancel", d: "Deadlines expire offers; cancel burns your nonces on chain.", I: Clock },
-  { t: "Email or Google sign-in", d: "Privy gives you a NEAR implicit account. No seed phrase.", I: Fingerprint },
+  { t: "Google sign-in", d: "Privy gives you a NEAR implicit account. No seed phrase.", I: Fingerprint },
   { t: "Balances in the verifier", d: "Test tokens sit in the intents verifier, ready to settle any deal.", I: Wallet },
   { t: "Test-token faucet", d: "tUSDC, tETH and wNEAR in one click, straight into your balance.", I: Drop },
   { t: "Dry-run first", d: "simulate_intents checks every match before gas is spent.", I: Coins },

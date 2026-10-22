@@ -31,7 +31,7 @@
 All steps run on the live app (https://near-private-otc-productio999n.up.railway.app) against NEAR testnet. Use two browsers (or a normal and a private window) for the maker and the taker.
 
 1. **Open https://near-private-otc-productio999n.up.railway.app/app without signing in** - see the public deal board: pair, side, expiry, status, request and counter-offer counts only. No size or price.
-2. **Sign in with email/Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet)** - see your NEAR account in the header; a new Privy implicit account is funded with 0.2 test NEAR.
+2. **Sign in with Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet)** - see your NEAR account in the header; a new Privy implicit account is funded with 0.2 test NEAR.
 3. **Wallet -> Faucet -> claim tUSDC (and wNEAR or tETH)** - see the balance credited straight into your verifier balance on `otcdesk-intents.testnet`, with the transaction in Activity. Balances shown are held in the NEAR Intents verifier: deposit to trade, withdraw to move them back to your wallet.
 4. **New deal -> pick pair, side, size, price -> choose Public or Private -> pick an expiry chip (2 min (demo), 1h, 24h, 7d) -> sign** - see the deal on the board (Public) or get a link-only `/d/<id>` URL (Private), with a NearBlocks link to the OutLayer `check` transaction. The board still shows no amounts.
 5. **As the taker, open the deal -> Request terms** - the keeper checks you hold at least $200 (CoinGecko) of the token the maker wants (wallet + verifier); without it you see "You need at least $200 in <token> to request deals."
@@ -157,7 +157,7 @@ MIT
 
 ## Deal flow rules
 
-- The board and deal pages are open to everyone without sign-in. Cards show pair, side, status, expiry, request and counter-offer counts only. Signing in (Privy email/Google or a NEAR wallet) is needed to post, request terms, counter or accept.
+- The board and deal pages are open to everyone without sign-in. Cards show pair, side, status, expiry, request and counter-offer counts only. Signing in (Privy Google or a NEAR wallet) is needed to post, request terms, counter or accept.
 - Terms are gated by **Request access** + **proof of funds** + **maker approval** (see below). Each reveal is still logged per deal (account + time) for the maker.
 - Many counterparties can counter the same deal in parallel; each sees only their own thread, the maker sees all and accepts one.
 - First settlement wins: the keeper serialises settlement per deal, and the verifier burns the NEP-413 nonces on execute, so every other accept fails with a clear "already settled" message and no funds move.
@@ -192,7 +192,7 @@ Limits: the's account appears in the OutLayer job input on chain, sealed, but th
 
 ## Sign-in: Privy or a NEAR wallet
 
-- **Email or Google (Privy):** a NEAR implicit account is created for you; signing is silent (Privy raw-hash signing).
+- **Google (Privy):** a NEAR implicit account is created for you; signing is silent (Privy raw-hash signing).
 - **NEAR wallets (NEAR Wallet Selector v10):** Meteor, HOT, Intear, HERE, MyNearWallet, Ledger. Log in by signing a NEP-413 message `{otc_login: account, ts}` for recipient `near-private-otc`. The keeper (`POST /api/auth/wallet`) checks the ed25519 signature and that the key is a full-access key of the account (or the implicit account itself), then issues a 24 h session. The enclave re-checks the same signed login itself.
 - Trading signs `token_diff` intents with the wallet's `signMessage` (recipient = verifier). Named accounts register their key on the verifier once (`add_public_key`, 1 yoctoNEAR, prompted automatically).
 - Deposits: Wallet → "Deposit from your wallet" sends `ft_transfer_call` to the verifier (NEAR is wrapped with `near_deposit` in the same transaction). Withdraw (all sign-ins): a signed `ft_withdraw` intent relayed by the keeper; wNEAR arrives as wNEAR.

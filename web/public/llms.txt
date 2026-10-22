@@ -7,7 +7,7 @@
 - Relayer: otcdesk.testnet
 - Tokens: otcdesk-usdc.testnet (tUSDC), otcdesk-eth.testnet (tETH), wrap.testnet (wNEAR)
 - Enclave: OutLayer project otcdesk-enclave.testnet/private-otc, pubkey 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8
-- Sign-in: Privy (email or Google) → NEAR implicit account, or a NEAR wallet via Wallet Selector; the board needs no sign-in
+- Sign-in: Privy (Google) → NEAR implicit account, or a NEAR wallet via Wallet Selector; the board needs no sign-in
 - Built at NEAR HACKATHON 2026; track: defi (privacy is a supporting feature: terms sealed in OutLayer TDX)
 
 ## Pages
