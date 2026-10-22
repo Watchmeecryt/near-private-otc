@@ -27,8 +27,8 @@
     "enclave_request_verify": "ALbW42GGygPt5bEWFSGiHR5ZDnz8EX7gpjHsMZBLBLEy"
   },
   "outlayer_project": "otcdesk-enclave.testnet/private-otc",
-  "enclave_wasm_sha256": "b0ccc5be19b8c037079cdf962586ac22f334f2743e797d89ddb252ad258aa377",
-  "enclave_wasm_url": "https://test.fastfs.io/otcdesk-enclave.testnet/outlayer.testnet/b0ccc5be19b8c037079cdf962586ac22f334f2743e797d89ddb252ad258aa377.wasm",
+  "enclave_wasm_sha256": "1c19fcec8b19af4cd3ee64e7eea5474be32c24e6b210c49eddc636e9b48d09ec",
+  "enclave_wasm_url": "https://test.fastfs.io/otcdesk-enclave.testnet/outlayer.testnet/1c19fcec8b19af4cd3ee64e7eea5474be32c24e6b210c49eddc636e9b48d09ec.wasm",
   "enclave_pubkey": "03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8",
   "verifier_wasm": "near/intents release defuse/v0.4.2 defuse.wasm sha256 f67f9559b3b512c52dfa11723a28b9119bcf773ac01780370d6409e5f1fb20e5",
   "token_wasm": "near/intents releases/fungible-token.wasm sha256 12c5f9bd9136b4396823478281a61368b4c74cdaf35ab5743b302c3aac55a354",

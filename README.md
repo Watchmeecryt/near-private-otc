@@ -116,7 +116,7 @@ Considered and skipped: chain signatures (no cross-chain leg needed on testnet),
 | tUSDC (6 dp) | `otcdesk-usdc.testnet` | https://testnet.nearblocks.io/address/otcdesk-usdc.testnet |
 | tETH (18 dp) | `otcdesk-eth.testnet` | https://testnet.nearblocks.io/address/otcdesk-eth.testnet |
 | wNEAR | `wrap.testnet` | https://testnet.nearblocks.io/address/wrap.testnet |
-| OutLayer project | `otcdesk-enclave.testnet/private-otc` | wasm sha256 `b0ccc5be…a377` (`deployments/private-otc.json`) |
+| OutLayer project | `otcdesk-enclave.testnet/private-otc` | wasm sha256 `1c19fcec…09ec` (`deployments/private-otc.json`) |
 
 Deployment transaction hashes: `deployments/private-otc.json`.
 
@@ -175,7 +175,7 @@ Chips: **2 min (demo)**, 1h, 24h, 7d. The chosen time becomes the `deadline` ins
 
 ## Enclave output
 
-The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `b0ccc5be19b8c037079cdf962586ac22f334f2743e797d89ddb252ad258aa377` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
+The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `1c19fcec8b19af4cd3ee64e7eea5474be32c24e6b210c49eddc636e9b48d09ec` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
 
 ## Request access, proof of funds, maker approval
 
