@@ -22,6 +22,22 @@ Built at NEAR HACKATHON 2026. Track:
 
 Privacy is a supporting feature, not a track: exact terms and counter-offers are sealed in an OutLayer enclave (Intel TDX); the operator never holds the key.
 
+## Judge tour (do X - see Y)
+
+All steps run against `<APP_URL>` (the link in the submission form) or a local run against NEAR testnet. Use two browsers (or a normal and a private window) for the maker and the taker.
+
+1. **Open `<APP_URL>/app` without signing in** - see the public deal board: pair, side, expiry, status, request and counter-offer counts only. No size or price.
+2. **Sign in with Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet)** - see your NEAR account in the header; a new Privy implicit account is funded with 0.25 test NEAR.
+3. **Wallet -> Faucet -> claim tUSDC (and wNEAR or tETH)** - see the balance credited straight into your verifier balance on `otcdesk-intents.testnet`, with the transaction in Activity. Balances shown are held in the NEAR Intents verifier: deposit to trade, withdraw to move them back to your wallet.
+4. **New deal -> pick pair, side, size, price -> choose Public or Private -> pick an expiry chip (2 min (demo), 1h, 24h, 7d) -> sign** - see the deal on the board (Public) or get a link-only `/d/<id>` URL (Private), with a NearBlocks link to the OutLayer `check` transaction. The board still shows no amounts.
+5. **As the taker, open the deal -> Request terms** - the keeper checks you hold at least $200 (CoinGecko) of the token the maker wants (wallet + verifier); without it you see "You need at least $200 in <token> to request deals."
+6. **As the maker, approve the request (or turn on auto-approve)** - the taker sees the sealed terms open: exact size, price and note, decrypted in their browser.
+7. **Counter, Decline or Accept in the deal thread** - each counter is a new signed intent sealed to the enclave; only the two parties see it.
+8. **Accept a live offer** - the enclave checks the two intents are exact mirror images, the relayer runs `simulate_intents` then `execute_intents`; see the deal turn Settled with a NearBlocks link, and both Wallet balances change.
+9. **Wallet -> Withdraw -> pick a token, tap Max or type an amount -> Sign & withdraw** (any sign-in) - see a success toast with the NearBlocks tx, the verifier balance drop and the tokens arrive in your own NEAR account. The first withdrawal of a token registers storage (`storage_deposit`, 0.00125 NEAR) on your account.
+10. **Cancel an open deal (My deals)** - see the cancel transaction: empty intents re-use the offer nonces, so the old signatures can never settle.
+11. **`curl <APP_URL>/api/deals`** - see JSON with pair, side, deadline, status, counts and tx hashes, and no amounts or prices.
+
 ## Under the hood: one trade, six steps
 
 1. **Post.** The maker picks pair, side, size and price. The browser builds a `token_diff` intent (−what I give, +what I get), the maker signs it (NEP-413, no gas), and the whole offer `{terms, note, signed intent}` is sealed (ECIES secp256k1 + AES-256-GCM) to the enclave's public key. The keeper relays the sealed blob to the enclave (`check`), which verifies the signed intent matches the sealed terms and publishes **only** pair, side and the deadline (the keeper drops the enclave's coarse size band and never serves it).
@@ -78,22 +94,6 @@ Testnet trust note: the verifier `otcdesk-intents.testnet` is our own unmodified
 - Its private key is `HKDF(PROTECTED_OTC_MASTER)`. The master secret was generated inside the OutLayer keystore TEE (`outlayer secrets set --generate PROTECTED_OTC_MASTER:hex32`) and is never shown to anyone.
 - Browsers seal to the enclave public key `03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8` (verifiable by running the `pubkey` action; tx `9mXRyuvrpPwTQKbgRtfrVhLEPUqCJ7hn5PgFPCz67Heo`).
 - The keeper calls `outlayer.testnet.request_execution` (NEAR yield/resume) with the sealed input, so every check, reveal and match is a NEAR transaction with a verifiable wasm hash.
-
-## Judge tour: two browsers, one trade
-
-All steps run against `<APP_URL>` (the link in the submission form) or a local run against NEAR testnet. Use two browsers (or a normal and a private window) for the maker and the taker.
-
-1. **Open `<APP_URL>/app` without signing in** - see the public deal board: pair, side, expiry, status, request and counter-offer counts only. No size or price.
-2. **Sign in with Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet)** - see your NEAR account in the header; a new Privy implicit account is funded with 0.2 test NEAR.
-3. **Wallet -> Faucet -> claim tUSDC (and wNEAR or tETH)** - see the balance credited straight into your verifier balance on `otcdesk-intents.testnet`, with the transaction in Activity. Balances shown are held in the NEAR Intents verifier: deposit to trade, withdraw to move them back to your wallet.
-4. **New deal -> pick pair, side, size, price -> choose Public or Private -> pick an expiry chip (2 min (demo), 1h, 24h, 7d) -> sign** - see the deal on the board (Public) or get a link-only `/d/<id>` URL (Private), with a NearBlocks link to the OutLayer `check` transaction. The board still shows no amounts.
-5. **As the taker, open the deal -> Request terms** - the keeper checks you hold at least $200 (CoinGecko) of the token the maker wants (wallet + verifier); without it you see "You need at least $200 in <token> to request deals."
-6. **As the maker, approve the request (or turn on auto-approve)** - the taker sees the sealed terms open: exact size, price and note, decrypted in their browser.
-7. **Counter, Decline or Accept in the deal thread** - each counter is a new signed intent sealed to the enclave; only the two parties see it.
-8. **Accept a live offer** - the enclave checks the two intents are exact mirror images, the relayer runs `simulate_intents` then `execute_intents`; see the deal turn Settled with a NearBlocks link, and both Wallet balances change.
-9. **Wallet -> Withdraw -> pick a token, tap Max or type an amount -> Sign & withdraw** (any sign-in) - see a success toast with the NearBlocks tx, the verifier balance drop and the tokens arrive in your own NEAR account. The first withdrawal of a token registers storage (`storage_deposit`, 0.00125 NEAR) on your account.
-10. **Cancel an open deal (My deals)** - see the cancel transaction: empty intents re-use the offer nonces, so the old signatures can never settle.
-11. **`curl <APP_URL>/api/deals`** - see JSON with pair, side, deadline, status, counts and tx hashes, and no amounts or prices.
 
 ## Deal flow rules
 
