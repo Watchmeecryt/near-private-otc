@@ -140,6 +140,17 @@ async function usdHolding(account, symbol) {
 }
 
 const routes = [
+  // One-time admin wipe (removed right after use).
+  ["POST", /^\/api\/admin\/wipe$/, async (req) => {
+    const t = process.env.ADMIN_WIPE_TOKEN || "", b = Buffer.from(bearerOf(req)), k = Buffer.from(t);
+    if (t.length < 32 || b.length !== k.length || !crypto.timingSafeEqual(b, k)) throw new HttpError(403, "forbidden");
+    const open = Object.values(db.deals).filter((d) => d.status === "Open").map((d) => d.id);
+    if (open.length) throw new HttpError(409, "open deals: " + open.join(","));
+    const before = { deals: Object.keys(db.deals).length, sessions: Object.keys(db.sessions || {}).length, faucet: Object.keys(db.faucet || {}).length };
+    const backup = path.join(DATA, `private-otc.backup-${Date.now()}.json`); fs.writeFileSync(backup, JSON.stringify(db), { mode: 0o600 });
+    db.deals = {}; db.sessions = {}; save();
+    return { ok: true, before, after: { deals: 0, sessions: 0, faucet: Object.keys(db.faucet || {}).length }, backup: path.basename(backup) };
+  }],
   ["GET", /^\/api\/prices$/, async () => prices()],
   ["GET", /^\/api\/health$/, async () => ({ ok: true, keeper: KEEPER_ID, verifier: VERIFIER, deals: Object.keys(db.deals).length, relayer: !!keeper })],
   ["GET", /^\/api\/deals$/, async () => (Object.values(db.deals).filter((d) => d.visibility !== "private").sort((a, b) => b.created - a.created).map(publicDeal))],
