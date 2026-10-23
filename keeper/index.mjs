@@ -65,7 +65,7 @@ setInterval(() => { const now = Date.now(); for (const [k, w] of hits) if (!w.so
 const body = (req, max = 64 * 1024) => new Promise((res, rej) => { const c = []; let n = 0; req.on("data", (d) => { n += d.length; if (n > max) { rej(new Error("too large")); req.destroy(); } else c.push(d); }); req.on("end", () => res(Buffer.concat(c))); req.on("error", rej); });
 const jbody = async (req) => JSON.parse((await body(req)).toString() || "{}");
 const json = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
-const TYPES = { ".js": "text/javascript", ".css": "text/css", ".html": "text/html; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json", ".txt": "text/plain; charset=utf-8", ".md": "text/markdown; charset=utf-8", ".xml": "application/xml" };
+const TYPES = { ".js": "text/javascript", ".css": "text/css", ".html": "text/html; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json", ".txt": "text/plain; charset=utf-8", ".md": "text/markdown; charset=utf-8", ".xml": "application/xml", ".wasm": "application/wasm" };
 const bearerOf = (req) => (req.headers.authorization || "").replace(/^Bearer /, "");
 class HttpError extends Error { constructor(code, msg) { super(msg); this.code = code; } }
 const authCache = new Map();
