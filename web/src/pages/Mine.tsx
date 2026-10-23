@@ -11,6 +11,8 @@ export default function Mine() {
   const [list, setList] = useState<MyDeal[] | null>(null);
   const [f, setF] = useState("All");
   useEffect(() => { if (!account) return; const load = () => api<MyDeal[]>(`/api/my?account=${account}`).then(setList).catch(() => setList([])); load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [account]);
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => { setAdmin(false); if (account) api<{ admin: boolean }>(`/api/admin/status?account=${account}`).then((r) => setAdmin(!!r.admin)).catch(() => {}); }, [account]);
   if (!account) return <><Top title="My deals" /><NeedSignIn what="Sign in to see deals you made or requested." /></>;
   const shown = (list || []).filter((d) => f === "All" || d.my_status === f);
   return (
@@ -24,6 +26,24 @@ export default function Mine() {
               extra={pend > 0 ? <span className="chip chip-blue">{pend} to approve</span> : null} />); })}
         </div>
       )}
+      {admin && <AdminWipe account={account} />}
     </>
+  );
+}
+
+function AdminWipe({ account }: { account: string }) {
+  const [txt, setTxt] = useState(""); const [msg, setMsg] = useState(""); const [busy, setBusy] = useState(false);
+  const go = async () => {
+    setBusy(true); setMsg("");
+    try { const r = await api<{ before: { deals: number } }>("/api/admin/wipe-wallet", { account, confirm: txt }); setMsg(`Wiped ${r.before.deals} deals. Sessions were cleared, so sign in again.`); }
+    catch (e: any) { setMsg(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card card-pad" style={{ marginTop: 24 }}>
+      <div className="muted" style={{ marginBottom: 8 }}>Admin: wipe all deals (and sessions). Type WIPE to confirm.</div>
+      <input className="input" value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="WIPE" />{" "}
+      <button className="btn" disabled={busy || txt !== "WIPE"} onClick={go}>Admin: wipe all deals</button>
+      {msg && <div className="muted" style={{ marginTop: 8 }}>{msg}</div>}
+    </div>
   );
 }

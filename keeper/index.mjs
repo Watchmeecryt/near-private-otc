@@ -139,18 +139,38 @@ async function usdHolding(account, symbol) {
   return Number(units) / 10 ** t.decimals * p;
 }
 
+const ADMIN_WALLET = () => (process.env.ADMIN_WALLET || "").trim();
+const wipeEnabled = () => (process.env.ADMIN_WIPE_TOKEN || "").length >= 32 || !!process.env.WIPE_ENABLED;
+function wipeAll() {
+  const open = Object.values(db.deals).filter((d) => d.status === "Open").map((d) => d.id);
+  if (open.length) throw new HttpError(409, "Cancel the open deals first: " + open.join(", "));
+  const before = { deals: Object.keys(db.deals).length, sessions: Object.keys(db.sessions || {}).length, faucet: Object.keys(db.faucet || {}).length };
+  const backup = path.join(DATA, `private-otc.backup-${Date.now()}.json`); fs.writeFileSync(backup, JSON.stringify(db), { mode: 0o600 });
+  db.deals = {}; db.sessions = {}; authCache.clear(); save();
+  return { ok: true, before, after: { deals: 0, sessions: 0, faucet: Object.keys(db.faucet || {}).length }, backup: path.basename(backup) };
+}
+
 const routes = [
-  // Admin wipe: enabled only while the ADMIN_WIPE_TOKEN Railway variable is set (Bearer token). Refuses while any deal is Open.
+  // Admin wipe: enabled only while ADMIN_WIPE_TOKEN (curl, Bearer token) or WIPE_ENABLED (wallet UI) is set
+  // on Railway. Refuses while any deal is Open. Backs up the DB, clears deals and sessions, keeps the faucet.
   ["POST", /^\/api\/admin\/wipe$/, async (req) => {
     const t = process.env.ADMIN_WIPE_TOKEN || "", b = Buffer.from(bearerOf(req)), k = Buffer.from(t);
-    if (t.length < 32) throw new HttpError(404, "Not found"); // disabled unless ADMIN_WIPE_TOKEN is set
-    if ( b.length !== k.length || !crypto.timingSafeEqual(b, k)) throw new HttpError(403, "forbidden");
-    const open = Object.values(db.deals).filter((d) => d.status === "Open").map((d) => d.id);
-    if (open.length) throw new HttpError(409, "open deals: " + open.join(","));
-    const before = { deals: Object.keys(db.deals).length, sessions: Object.keys(db.sessions || {}).length, faucet: Object.keys(db.faucet || {}).length };
-    const backup = path.join(DATA, `private-otc.backup-${Date.now()}.json`); fs.writeFileSync(backup, JSON.stringify(db), { mode: 0o600 });
-    db.deals = {}; db.sessions = {}; save();
-    return { ok: true, before, after: { deals: 0, sessions: 0, faucet: Object.keys(db.faucet || {}).length }, backup: path.basename(backup) };
+    if (t.length < 32) throw new HttpError(404, "Not found");
+    if (b.length !== k.length || !crypto.timingSafeEqual(b, k)) throw new HttpError(403, "forbidden");
+    return wipeAll();
+  }],
+  ["GET", /^\/api\/admin\/status$/, async (req) => {
+    const account = new URL(req.url, "http://x").searchParams.get("account") || "";
+    if (!wipeEnabled() || !ADMIN_WALLET() || account !== ADMIN_WALLET()) return { admin: false };
+    await who(req, account); return { admin: true };
+  }],
+  ["POST", /^\/api\/admin\/wipe-wallet$/, async (req) => {
+    const { account, confirm } = await jbody(req);
+    if (!wipeEnabled() || !ADMIN_WALLET()) throw new HttpError(404, "Not found");
+    const me = await who(req, account); // server-side session check: the signed-in account must be ADMIN_WALLET
+    if (account !== ADMIN_WALLET() || !me.accounts.includes(ADMIN_WALLET())) throw new HttpError(403, "forbidden");
+    if (confirm !== "WIPE") throw new HttpError(400, 'Type WIPE to confirm.');
+    return wipeAll();
   }],
   ["GET", /^\/api\/prices$/, async () => prices()],
   ["GET", /^\/api\/health$/, async () => ({ ok: true, keeper: KEEPER_ID, verifier: VERIFIER, deals: Object.keys(db.deals).length, relayer: !!keeper })],
