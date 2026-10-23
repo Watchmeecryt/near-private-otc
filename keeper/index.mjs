@@ -140,10 +140,11 @@ async function usdHolding(account, symbol) {
 }
 
 const routes = [
-  // One-time admin wipe (removed right after use).
+  // Admin wipe: enabled only while the ADMIN_WIPE_TOKEN Railway variable is set (Bearer token). Refuses while any deal is Open.
   ["POST", /^\/api\/admin\/wipe$/, async (req) => {
     const t = process.env.ADMIN_WIPE_TOKEN || "", b = Buffer.from(bearerOf(req)), k = Buffer.from(t);
-    if (t.length < 32 || b.length !== k.length || !crypto.timingSafeEqual(b, k)) throw new HttpError(403, "forbidden");
+    if (t.length < 32) throw new HttpError(404, "Not found"); // disabled unless ADMIN_WIPE_TOKEN is set
+    if ( b.length !== k.length || !crypto.timingSafeEqual(b, k)) throw new HttpError(403, "forbidden");
     const open = Object.values(db.deals).filter((d) => d.status === "Open").map((d) => d.id);
     if (open.length) throw new HttpError(409, "open deals: " + open.join(","));
     const before = { deals: Object.keys(db.deals).length, sessions: Object.keys(db.sessions || {}).length, faucet: Object.keys(db.faucet || {}).length };
