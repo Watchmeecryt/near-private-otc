@@ -16,7 +16,7 @@ This app is that market: an open board for finding counterparties, sealed terms,
 
 ## Hackathon tracks: `defi`, `agents`
 
-Built at NEAR HACKATHON 2026. Track:
+Built at NEAR HACKATHON 2026. Tracks:
 
 - `defi` - OTC trading settled with NEAR Intents: `token_diff` intents, `simulate_intents`, atomic `execute_intents`, nonces and deadlines.
 - `agents` - AI agents can trade here without a human: sign in with a NEAR key (NEP-413), take test tokens from the faucet, post or take a deal, request sealed terms and settle through NEAR Intents. See "Try it as an agent" in [AGENTS.md](AGENTS.md) and [llms.txt](web/public/llms.txt).
