@@ -42,7 +42,7 @@ export default function Create() {
   const [exp, setExp] = useState(EXP[1][1]); const [note, setNote] = useState("");
   const [manual, setManual] = useState(false);
   const [vis, setVis] = useState<"public" | "private">("public");
-  const [auto, setAuto] = useState(false);
+  const [auto, setAuto] = useState(true);
   const prices = usePrices();
   const [busy, setBusy] = useState("");
   const [bal, setBal] = useState<Record<string, string> | null>(null);
@@ -97,7 +97,7 @@ export default function Create() {
             </div>
             <p className="tiny muted" style={{ margin: "6px 0 0" }}>{vis === "public" ? "Listed on the deal board for every signed-in trader." : "Not listed anywhere. Only people you send the link to can open it. You can make it public later, but a public deal can't go back to private."}</p>
           </div>
-          <label className="field check-field" style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} style={{ marginTop: 4 }} /><span><b>Auto-approve anyone with funds</b><br /><span className="tiny muted">Off: you approve each requester yourself. Requesters must hold at least $200 of the token you want (spam filter). Settlement still only happens if they really have the full amount.</span></span></label>
+          <label className="field check-field" style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} style={{ marginTop: 4 }} /><span><b>Auto-approve anyone with funds</b><br /><span className="tiny muted">On by default. Untick to approve each requester yourself. Requesters must hold at least $200 of the token you want (spam filter). Settlement still only happens if they really have the full amount.</span></span></label>
           <label className="field"><span>Private note <i className="muted">(optional)</i></span><input className="input" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. happy to split into two trades" /></label>
           {isWallet(account) && !walletCanSign() && <p className="wallet-note">This wallet can't sign messages here, so it can't post deals. Use Meteor, HOT, Intear, HERE or MyNearWallet, or sign in with Google.</p>}
           <button className="btn btn-dark btn-full" disabled={!terms || !!busy || (isWallet(account) && !walletCanSign())} onClick={submit}><LockKey size={16} weight="bold" /> {busy || (terms ? "Sign & seal deal" : "Enter an amount to sell")}</button>
