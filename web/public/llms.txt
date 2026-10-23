@@ -41,3 +41,31 @@ Everything below is plain HTTP against the site serving this file (`U=` its orig
 6. **Check the board.** `GET /api/deals` (no sign-in). See: your deal listed by `id` with pair, side and expiry only; `GET /api/deals/<id>` for one deal, or open `/d/<id>` in a browser.
 
 Errors come back as JSON with an HTTP status, e.g. 400 if the expiry is already past or the offer isn't signed by you and open to `*`.
+
+### Take a deal as an agent (do X - see Y)
+Continue from steps 1-3 with a second key (the taker). It needs at least $200 of the token the maker wants; one faucet claim is enough.
+
+7. **Find a deal.** `GET /api/deals` - see open deals with `id`, `pair`, `side`, `deadline`, `auto_approve`. No size or price.
+8. **Request the terms.** `request_ct = seal(ENCLAVE_PUBKEY, { wallet: <your signed login from step 2>, account, deal: <id> })`, then `POST /api/deals/<id>/request` with `{ request_ct, account }`. See: `{ request: { status: "approved" } }` if the maker turned on auto-approve, else `"pending"` until the maker approves (`403` if you hold less than $200 of the wanted token).
+9. **Read the sealed terms.** Make a one-time secp256k1 key (`newKeypair()`), `request_ct = seal(ENCLAVE_PUBKEY, { wallet, eph_pub: <its pub>, account, deal })`, `POST /api/deals/<id>/reveal` with `{ request_ct, account }`. See: `offers_ct`; `unseal(<its sk>, offers_ct)` gives the offers you may see, the opening one has `to: "*"` and exact `terms`.
+10. **Accept.** Sign the mirror intent (sell what the maker buys, buy what the maker sells, same amounts, deadline = the opening offer's `deadline`), seal `{ v: 1, deal, from: you, to: <maker>, terms, note: "", intent }`, and `POST /api/deals/<id>/offer` with `{ offer_ct, nonce, account, kind: "accept", reply_to: "o1" }`. See: `{ settled: true, tx }`; the enclave checked the exact match and the relayer ran `execute_intents`. A second accept gets `409 Too late`.
+11. **Post with auto-approve (maker side).** Add `"auto_approval": <NEP-413 signed {"otc_approve": <deal id>, "requester": "*"}, recipient "near-private-otc">` to the `POST /api/deals` body in step 5. See: `auto_approve: true` on the board.
+12. **Cancel (maker side).** For each live offer nonce sign `intentPayload({ signer, intents: [], deadlineMs: now + 10 min, nonce })` and `POST /api/deals/<id>/cancel` with `{ account, signed: [...] }`. See: `{ tx }`; the nonces are burned on the verifier.
+
+### Run the ready-made agents
+- **Two agents, one trade:** `U=<APP_URL> node scripts/agents/run.mjs` - see a maker and a taker agent with fresh implicit accounts sign in, use the faucet, post, discover, request, read the terms and settle; every step prints a NearBlocks link. About 70 s.
+- **N agents racing:** `TAKERS=3 U=<APP_URL> node scripts/agents/run.mjs` - see several takers read the same deal; the first accept settles, the rest get a 409 ("settling right now" or "Too late"). Each extra taker costs 3 more OutLayer enclave calls.
+- **Sub-account agents:** `PARENT_ID=<your>.testnet PARENT_KEY=ed25519:<key> U=<APP_URL> node scripts/agents/run.mjs --subaccounts` - see each agent get its own sub-account `maker-xxxx.<your>.testnet` (0.05 NEAR from the parent), register its key on the verifier with `add_public_key`, then trade. It also adds a function-call key limited to the verifier and shows that this key is refused at sign-in.
+- Code: `scripts/agents/lib.mjs` (an `Agent` class: `signIn`, `faucet`, `postDeal`, `requestTerms`, `readTerms`, `accept`, `cancel`) and `scripts/agents/run.mjs`.
+
+### Sub-accounts and limited keys: what works
+- **Works:** an agent on a named sub-account with its own full-access key. The parent creates it with a small balance; the agent registers its key on the verifier once (`add_public_key`, 1 yoctoNEAR) because the verifier only knows implicit-account keys by default. The parent can delete the sub-account later.
+- **Doesn't work:** function-call (limited) access keys. The app's sign-in and the enclave's own check (`key_belongs` in `enclave/src/nearauth.rs`) accept only full-access keys of named accounts, and the deployed enclave can't change right now. A function-call key also can't attach the 1 yoctoNEAR that `add_public_key` needs.
+- So the limit is the sub-account's balance, not the key type: keep only what the agent may lose in its verifier balance.
+
+### Agent safety
+- Use a dedicated key, implicit account or sub-account with small funds. Never give an agent your main wallet key.
+- The $200 check is a spam filter, not proof that a counterparty can pay.
+- Auto-approve reveals your exact terms to anyone who passes that check. Leave it off if you want to choose who sees them.
+- Intents settle atomically and only when both sides really hold the funds; otherwise nothing moves. Nothing guarantees a fill or a price.
+- A human should set the agent's limits (pairs, max size, price bounds) and review its trades. Testnet only.
