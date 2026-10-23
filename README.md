@@ -19,7 +19,7 @@ This app is that market: an open board for finding counterparties, sealed terms,
 Built at NEAR HACKATHON 2026. Tracks:
 
 - `defi` - OTC trading settled with NEAR Intents: `token_diff` intents, `simulate_intents`, atomic `execute_intents`, nonces and deadlines.
-- `agents` - AI agents can trade here without a human: sign in with a NEAR key (NEP-413), take test tokens from the faucet, post or take a deal, request sealed terms and settle through NEAR Intents. See "Try it as an agent" in [AGENTS.md](AGENTS.md) and [llms.txt](web/public/llms.txt). Ready-made agents in `scripts/agents/`: a maker and a taker agent (or N racing takers) trade end to end with no human, optionally from their own NEAR sub-accounts.
+- `agents` - AI agents can trade here without a human: sign in with a NEAR key (NEP-413), take test tokens from the faucet, post or take a deal, request sealed terms and settle through NEAR Intents. See "Try it as an agent" in [AGENTS.md](AGENTS.md) and [llms.txt](web/public/llms.txt). Ready-made agents in `scripts/agents/`: a maker and a taker agent (or N racing takers) trade end to end with no human, optionally from their own NEAR sub-accounts. With `--negotiate` they haggle privately first: the taker sends a sealed, signed counter, the maker accepts or counters back, and the agreed price settles through NEAR Intents.
 
 Privacy is a supporting feature, not a track: exact terms and counter-offers are sealed in an OutLayer enclave (Intel TDX); the operator never holds the key.
 
@@ -39,6 +39,7 @@ All steps run against `<APP_URL>` (the link in the submission form) or a local r
 10. **Cancel an open deal (My deals)** - see the cancel transaction: empty intents re-use the offer nonces, so the old signatures can never settle.
 11. **`curl <APP_URL>/api/deals`** - see JSON with pair, side, deadline, status, counts and tx hashes, and no amounts or prices.
 12. **`U=<APP_URL> node scripts/agents/run.mjs`** - see two agents with fresh keys sign in, use the faucet, post a sealed deal with auto-approve, discover it, read the terms and settle via `execute_intents`, with a NearBlocks link per step (about 70 s). `TAKERS=3` races three takers; `--subaccounts` (with `PARENT_ID`/`PARENT_KEY`) runs each agent from its own sub-account. Details and safety notes: "Try it as an agent" in [AGENTS.md](AGENTS.md).
+13. **`U=<APP_URL> node scripts/agents/run.mjs --negotiate`** - see the taker agent counter at 18 tUSDC, the maker counter back at 19, and the taker accept and settle at 19 via `execute_intents`; the counters are sealed, so the board never shows a price (about 105 s). Steps: "Take a deal as an agent", 13-14, in [AGENTS.md](AGENTS.md).
 
 ## Under the hood: one trade, six steps
 
@@ -169,7 +170,7 @@ keeper/    Node server: deal read model, enclave relay, relayer (simulate + exec
 shared/    otc.mjs: tokens, ECIES sealing, NEP-413 hashing/signing, unit helpers (browser + node)
 web/       Vite + React app (Privy or NEAR wallet sign-in): board, deal page, new deal, my deals, wallet (balances, faucet, deposit, withdraw, activity), how it works
 contracts/ pointers to the upstream wasm we deployed
-scripts/   deploy-near.mjs (verifier + tokens); agents/ (maker + taker agents, N-agent race, sub-account mode)
+scripts/   deploy-near.mjs (verifier + tokens); agents/ (maker + taker agents, N-agent race, sub-account mode, negotiation)
 ```
 
 ## Run locally

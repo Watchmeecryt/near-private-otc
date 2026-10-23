@@ -53,21 +53,38 @@ export class Agent {
     return this.http("POST", "/api/deals", { ...o, account: this.account, visibility: "public", auto_approval });
   }
   requestTerms(id) { return this.http("POST", `/api/deals/${id}/request`, { request_ct: seal(ENCLAVE_PUBKEY, { wallet: this.login, account: this.account, deal: id }), account: this.account }); }
-  /** Enclave re-seals the terms to a one-time key only this agent holds. */
+  /** Enclave re-seals the terms to a one-time key only this agent holds. Returns the sealed contents (offers),
+   *  the keeper's thread metadata (ids, kind, status) and both zipped together as `thread`. */
   async readTerms(id) {
     const k = newKeypair();
     const r = await this.http("POST", `/api/deals/${id}/reveal`, { request_ct: seal(ENCLAVE_PUBKEY, { wallet: this.login, eph_pub: k.pub, account: this.account, deal: id }), account: this.account });
-    return { offers: unseal(k.sk, r.offers_ct), tx: r.tx };
+    const offers = unseal(k.sk, r.offers_ct), meta = r.offers || [];
+    const thread = meta.map((m) => ({ ...m, sealed: offers.find((o) => o.commitment === m.commitment) })).filter((m) => m.sealed);
+    return { offers, meta, thread, tx: r.tx };
+  }
+  /** Sign and send an offer that replies to `target` (a thread item): kind "accept" (exact mirror) or "counter". */
+  async reply(id, target, kind, terms, note = "") {
+    const deadlineMs = Date.parse(target.sealed.deadline);
+    const o = await this.signedOffer({ deal: id, to: target.from, terms, deadlineMs, note });
+    (this.offerNonces ||= []).push(o.nonce);
+    return this.http("POST", `/api/deals/${id}/offer`, { ...o, account: this.account, kind, reply_to: target.id });
   }
   /** Taker: sign the exact mirror of the opening offer and accept -> enclave match -> execute_intents. */
-  async accept(id, open) {
-    const t = open.terms, terms = { sell_token: t.buy_token, sell_amount: t.buy_amount, buy_token: t.sell_token, buy_amount: t.sell_amount };
-    const o = await this.signedOffer({ deal: id, to: open.from, terms, deadlineMs: Date.parse(open.deadline) });
-    return this.http("POST", `/api/deals/${id}/offer`, { ...o, account: this.account, kind: "accept", reply_to: "o1" });
+  accept(id, open) { return this.acceptOffer(id, { id: "o1", from: open.from, sealed: open }); }
+  /** Accept any live offer addressed to me (the listing or a counter): exact mirror of its terms. */
+  acceptOffer(id, target) { return this.reply(id, target, "accept", mirror(target.sealed.terms)); }
+  /** Counter `target` with my own terms (same token pair, my side): `give` of what I pay, `get` of what I receive. */
+  counter(id, target, give, get, note = "") {
+    const m = mirror(target.sealed.terms), S = tokenById(m.sell_token), B = tokenById(m.buy_token);
+    return this.reply(id, target, "counter", { ...m, sell_amount: toUnits(String(give), S.decimals), buy_amount: toUnits(String(get), B.decimals) }, note);
   }
+  /** Decline a live counter addressed to me (no enclave call). */
+  decline(id, offerId) { return this.http("POST", `/api/deals/${id}/decline`, { account: this.account, offer_id: offerId }); }
   async cancel(id) {
     const signed = []; for (const n of this.offerNonces || []) signed.push(await this.nep(intentPayload({ signer: this.account, intents: [], deadlineMs: Date.now() + 600000, nonce: Uint8Array.from(Buffer.from(n, "base64")) })));
     return this.http("POST", `/api/deals/${id}/cancel`, { account: this.account, signed });
   }
 }
+export const mirror = (t) => ({ sell_token: t.buy_token, sell_amount: t.buy_amount, buy_token: t.sell_token, buy_amount: t.sell_amount });
+export const amt = (units, tok) => Number(fromUnits(units, tokenById(tok).decimals));
 export const human = (terms) => `${fromUnits(terms.sell_amount, tokenById(terms.sell_token).decimals)} ${tokenById(terms.sell_token).symbol} for ${fromUnits(terms.buy_amount, tokenById(terms.buy_token).decimals)} ${tokenById(terms.buy_token).symbol}`;
