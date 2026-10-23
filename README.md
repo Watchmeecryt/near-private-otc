@@ -2,8 +2,8 @@
 
 **A private OTC deal board on NEAR.** Post a deal with a sealed size and price, let strangers find it, negotiate privately, and settle both sides in one atomic NEAR Intents call.
 
-- **Try it:** use the app link from the submission form (`<APP_URL>` below), or [run it locally](#run-locally) at `http://127.0.0.1:8790`.
-- **Network:** NEAR testnet only (test tokens, no real value).
+**Live app (NEAR testnet): https://near-private-otc-productio999n.up.railway.app** - test tokens only, no real value. Agents: [https://near-private-otc-productio999n.up.railway.app/llms.txt](https://near-private-otc-productio999n.up.railway.app/llms.txt) and [AGENTS.md](AGENTS.md). Or [run it locally](#run-locally) at `http://127.0.0.1:8790`.
+
 - **Problem:** OTC traders can't find a counterparty unless they already know one, and posting size and price publicly leaks information.
 
 ## Why this exists
@@ -14,6 +14,14 @@
 
 This app is that market: an open board for finding counterparties, sealed terms, and fills settled with NEAR Intents.
 
+## Try it in 2 minutes (do X - see Y)
+
+1. **Open [https://near-private-otc-productio999n.up.railway.app/app](https://near-private-otc-productio999n.up.railway.app/app), no sign-in** - see the open deals: pair, side, expiry, status and counts. No size or price.
+2. **Sign in with Google, then Wallet -> Faucet** - see test tUSDC/tETH/wNEAR in your balance and 0.25 test NEAR for gas on your new account.
+3. **Open a deal -> Request terms -> Accept (or New deal to post your own)** - see the sealed terms open for you, then the deal turn Settled with a NearBlocks `execute_intents` tx.
+
+**Agents, one command:** `U=https://near-private-otc-productio999n.up.railway.app node scripts/agents/run.mjs --negotiate` (Node 20+, after `npm ci`; no keys needed, it makes fresh testnet accounts) - see a maker and a taker agent post, counter, counter back and settle, with a NearBlocks link per step. More in [AGENTS.md](AGENTS.md).
+
 ## Hackathon tracks: `defi`, `agents`
 
 Built at NEAR HACKATHON 2026. Tracks:
@@ -23,11 +31,20 @@ Built at NEAR HACKATHON 2026. Tracks:
 
 Privacy is a supporting feature, not a track: exact terms and counter-offers are sealed in an OutLayer enclave (Intel TDX); the operator never holds the key.
 
-## Judge tour (do X - see Y)
+## How it works: one trade, six steps
 
-All steps run against `<APP_URL>` (the link in the submission form) or a local run against NEAR testnet. Use two browsers (or a normal and a private window) for the maker and the taker.
+1. **Post.** The maker picks pair, side, size and price. The browser builds a `token_diff` intent (−what I give, +what I get), the maker signs it (NEP-413, no gas), and the whole offer `{terms, note, signed intent}` is sealed (ECIES secp256k1 + AES-256-GCM) to the enclave's public key. The keeper relays the sealed blob to the enclave (`check`), which verifies the signed intent matches the sealed terms and publishes **only** pair, side and the deadline (the keeper drops the enclave's coarse size band and never serves it).
+2. **Request.** A signed-in taker taps *Request terms*. The keeper checks they hold at least $200 (CoinGecko) of the token the maker wants (a fixed spam filter), and the maker approves the request (NEP-413 signed, or auto-approve). Their browser seals `{Privy access token, one-time public key, NEAR account, deal}` to the enclave. The enclave verifies the Privy token (ES256 against Privy JWKS), asks Privy from inside the TEE which NEAR wallets belong to that user, and re-seals the exact terms to the one-time browser key.
+3. **Negotiate.** *Accept*, *Counter* or *Decline*. Each counter is a new signed intent sealed to the enclave, readable only by the two parties named inside it.
+4. **Settle.** On *Accept*, the enclave (`settle`) checks the two signed intents are exact mirror images (same deal, opposite legs, equal amounts, different signers, addressed to each other) and releases them. The relayer dry-runs `simulate_intents` and calls `execute_intents` on our verifier. Both transfers happen in one transaction or not at all.
+5. **Deposit / withdraw.** The faucet (everyone) and *Deposit from your wallet* (NEAR-wallet sign-ins) move tokens into the verifier with `ft_transfer_call`. *Withdraw* (everyone) signs an `ft_withdraw` intent to your own account; the keeper relays it with `execute_intents`. Both are public on chain.
+6. **Expire / cancel.** Every intent carries a `deadline`. To cancel, the maker signs empty intents that re-use each live offer nonce; executing them marks those nonces used, so the old signatures can never settle.
 
-1. **Open `<APP_URL>/app` without signing in** - see the public deal board: pair, side, expiry, status, request and counter-offer counts only. No size or price.
+## Full tour (do X - see Y)
+
+All steps run against the live app (https://near-private-otc-productio999n.up.railway.app) or a local run against NEAR testnet. Use two browsers (or a normal and a private window) for the maker and the taker.
+
+1. **Open `https://near-private-otc-productio999n.up.railway.app/app` without signing in** - see the public deal board: pair, side, expiry, status, request and counter-offer counts only. No size or price.
 2. **Sign in with Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet)** - see your NEAR account in the header; a new Privy implicit account is funded with 0.25 test NEAR.
 3. **Wallet -> Faucet -> claim tUSDC (and wNEAR or tETH)** - see the balance credited straight into your verifier balance on `otcdesk-intents.testnet`, with the transaction in Activity. Balances shown are held in the NEAR Intents verifier: deposit to trade, withdraw to move them back to your wallet.
 4. **New deal -> pick pair, side, size, price -> choose Public or Private -> pick an expiry chip (2 min (demo), 1h, 24h, 7d) -> sign** - see the deal on the board (Public) or get a link-only `/d/<id>` URL (Private), with a NearBlocks link to the OutLayer `check` transaction. The board still shows no amounts.
@@ -37,18 +54,9 @@ All steps run against `<APP_URL>` (the link in the submission form) or a local r
 8. **Accept a live offer** - the enclave checks the two intents are exact mirror images, the relayer runs `simulate_intents` then `execute_intents`; see the deal turn Settled with a NearBlocks link, and both Wallet balances change.
 9. **Wallet -> Withdraw -> pick a token, tap Max or type an amount -> Sign & withdraw** (any sign-in) - see a success toast with the NearBlocks tx, the verifier balance drop and the tokens arrive in your own NEAR account. The first withdrawal of a token registers storage (`storage_deposit`, 0.00125 NEAR) on your account.
 10. **Cancel an open deal (My deals)** - see the cancel transaction: empty intents re-use the offer nonces, so the old signatures can never settle.
-11. **`curl <APP_URL>/api/deals`** - see JSON with pair, side, deadline, status, counts and tx hashes, and no amounts or prices.
-12. **`U=<APP_URL> node scripts/agents/run.mjs`** - see two agents with fresh keys sign in, use the faucet, post a sealed deal with auto-approve, discover it, read the terms and settle via `execute_intents`, with a NearBlocks link per step (about 70 s). `TAKERS=3` races three takers; `--subaccounts` (with `PARENT_ID`/`PARENT_KEY`) runs each agent from its own sub-account. Details and safety notes: "Try it as an agent" in [AGENTS.md](AGENTS.md).
-13. **`U=<APP_URL> node scripts/agents/run.mjs --negotiate`** - see the taker agent counter at 18 tUSDC, the maker counter back at 19, and the taker accept and settle at 19 via `execute_intents`; the counters are sealed, so the board never shows a price (about 105 s). Steps: "Take a deal as an agent", 13-14, in [AGENTS.md](AGENTS.md).
-
-## Under the hood: one trade, six steps
-
-1. **Post.** The maker picks pair, side, size and price. The browser builds a `token_diff` intent (−what I give, +what I get), the maker signs it (NEP-413, no gas), and the whole offer `{terms, note, signed intent}` is sealed (ECIES secp256k1 + AES-256-GCM) to the enclave's public key. The keeper relays the sealed blob to the enclave (`check`), which verifies the signed intent matches the sealed terms and publishes **only** pair, side and the deadline (the keeper drops the enclave's coarse size band and never serves it).
-2. **Request.** A signed-in taker taps *Request terms*. The keeper checks they hold at least $200 (CoinGecko) of the token the maker wants (a fixed spam filter), and the maker approves the request (NEP-413 signed, or auto-approve). Their browser seals `{Privy access token, one-time public key, NEAR account, deal}` to the enclave. The enclave verifies the Privy token (ES256 against Privy JWKS), asks Privy from inside the TEE which NEAR wallets belong to that user, and re-seals the exact terms to the one-time browser key.
-3. **Negotiate.** *Accept*, *Counter* or *Decline*. Each counter is a new signed intent sealed to the enclave, readable only by the two parties named inside it.
-4. **Settle.** On *Accept*, the enclave (`settle`) checks the two signed intents are exact mirror images (same deal, opposite legs, equal amounts, different signers, addressed to each other) and releases them. The relayer dry-runs `simulate_intents` and calls `execute_intents` on our verifier. Both transfers happen in one transaction or not at all.
-5. **Deposit / withdraw.** The faucet (everyone) and *Deposit from your wallet* (NEAR-wallet sign-ins) move tokens into the verifier with `ft_transfer_call`. *Withdraw* (everyone) signs an `ft_withdraw` intent to your own account; the keeper relays it with `execute_intents`. Both are public on chain.
-6. **Expire / cancel.** Every intent carries a `deadline`. To cancel, the maker signs empty intents that re-use each live offer nonce; executing them marks those nonces used, so the old signatures can never settle.
+11. **`curl https://near-private-otc-productio999n.up.railway.app/api/deals`** - see JSON with pair, side, deadline, status, counts and tx hashes, and no amounts or prices.
+12. **`U=https://near-private-otc-productio999n.up.railway.app node scripts/agents/run.mjs`** - see two agents with fresh keys sign in, use the faucet, post a sealed deal with auto-approve, discover it, read the terms and settle via `execute_intents`, with a NearBlocks link per step (about 70 s). `TAKERS=3` races three takers; `--subaccounts` (with `PARENT_ID`/`PARENT_KEY`) runs each agent from its own sub-account. Details and safety notes: "Try it as an agent" in [AGENTS.md](AGENTS.md).
+13. **`U=https://near-private-otc-productio999n.up.railway.app node scripts/agents/run.mjs --negotiate`** - see the taker agent counter at 18 tUSDC, the maker counter back at 19, and the taker accept and settle at 19 via `execute_intents`; the counters are sealed, so the board never shows a price (about 105 s). Steps: "Take a deal as an agent", 13-14, in [AGENTS.md](AGENTS.md).
 
 ## NEAR features used
 

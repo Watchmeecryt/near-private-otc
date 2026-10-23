@@ -1,5 +1,7 @@
 # AGENTS.md — NEAR Private OTC
 
+**Live app (NEAR testnet): https://near-private-otc-productio999n.up.railway.app** (machine-readable: https://near-private-otc-productio999n.up.railway.app/llms.txt)
+
 ## Problem
 OTC traders can't find a counterparty without already knowing them, and posting a size/price publicly leaks information.
 
@@ -36,7 +38,7 @@ Built at NEAR HACKATHON 2026.
 | OutLayer project | otcdesk-enclave.testnet/private-otc |
 | Enclave wasm sha256 | 1b9862020a7a0e13b809880d6022e6e636712731b325f424a60d108345da1760 (rolled back: OutLayer workers never picked up requests for later builds 6f6fb033…1c19fcec, which timed out; this build carries an older Privy app id/origin) |
 | Enclave pubkey | 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8 |
-| App | `<APP_URL>` (link in the submission form) or `http://127.0.0.1:8790` locally (`/api/health`) |
+| App | `https://near-private-otc-productio999n.up.railway.app` or `http://127.0.0.1:8790` locally (`/api/health`) |
 
 ## Claim → code
 | Claim | Where |
@@ -53,7 +55,7 @@ Built at NEAR HACKATHON 2026.
 `GET /api/health`, `GET /api/prices` (CoinGecko reference, 30 s cache), `GET /api/deals`, `GET /api/deals/:id`, `GET /api/my?account=` (Privy bearer), `POST /api/deals`, `POST /api/deals/:id/{reveal,offer,decline,cancel}`, `POST /api/withdraw`, `POST /api/faucet`, `POST /api/fund`, `POST /api/rpc`.
 
 ## Try it as an agent
-Everything below is plain HTTP against the app (`U=<APP_URL>`, the link in the submission form, or `http://127.0.0.1:8790` for a local run) plus the helpers in `shared/otc.mjs` (`signIntent`, `intentPayload`, `tokenDiff`, `seal`, `tokenById`, `toUnits`, `b64`, `ENCLAVE_PUBKEY`).
+Everything below is plain HTTP against the app (`U=https://near-private-otc-productio999n.up.railway.app`, or `http://127.0.0.1:8790` for a local run) plus the helpers in `shared/otc.mjs` (`signIntent`, `intentPayload`, `tokenDiff`, `seal`, `tokenById`, `toUnits`, `b64`, `ENCLAVE_PUBKEY`).
 
 1. **Make a testnet key.** Generate an ed25519 keypair. Your account is the NEAR implicit account = the 32-byte public key as hex. See: an account id like `3f9a…` (64 hex chars).
 2. **Sign in.** Sign a NEP-413 message with `signIntent({ message: JSON.stringify({ otc_login: <account>, ts: Date.now() }), nonce: <32 random bytes>, recipient: "near-private-otc" }, <pubkey base58>, sign)`, then
@@ -80,10 +82,10 @@ Continue from steps 1-3 with a second key (the taker). It needs at least $200 of
 14. **Answer a counter.** Reveal again (step 9) and find the live `counter` with `to: you`. Accept it: sign the exact mirror of its terms and send `kind: "accept", reply_to: <counter id>` - see `{ settled: true, tx }`. Counter back: step 13 with `reply_to: <counter id>` - see a new live counter, and the one you answered becomes `superseded`. Decline: `POST /api/deals/<id>/decline` with `{ account, offer_id }` - see its status become `declined`. A maker who cancels must also include the nonces of its own live counters.
 
 ### Run the ready-made agents
-- **Two agents, one trade:** `U=<APP_URL> node scripts/agents/run.mjs` - see a maker and a taker agent with fresh implicit accounts sign in, use the faucet, post, discover, request, read the terms and settle; every step prints a NearBlocks link. About 70 s.
-- **N agents racing:** `TAKERS=3 U=<APP_URL> node scripts/agents/run.mjs` - see several takers read the same deal; the first accept settles, the rest get a 409 ("settling right now" or "Too late"). Each extra taker costs 3 more OutLayer enclave calls.
-- **Sub-account agents:** `PARENT_ID=<your>.testnet PARENT_KEY=ed25519:<key> U=<APP_URL> node scripts/agents/run.mjs --subaccounts` - see each agent get its own sub-account `maker-xxxx.<your>.testnet` (0.05 NEAR from the parent), register its key on the verifier with `add_public_key`, then trade. It also adds a function-call key limited to the verifier and shows that this key is refused at sign-in.
-- **Negotiation:** `U=<APP_URL> node scripts/agents/run.mjs --negotiate` - see the taker counter below the listing (`COUNTER`, default 90%), the maker read it and either accept (at or above `FLOOR`, default 95%) or counter back halfway, then the taker accept the maker's counter (at or below `LIMIT`, default 97%, else decline) and settle via `execute_intents`. About 105 s and 11 OutLayer enclave calls.
+- **Two agents, one trade:** `U=https://near-private-otc-productio999n.up.railway.app node scripts/agents/run.mjs` - see a maker and a taker agent with fresh implicit accounts sign in, use the faucet, post, discover, request, read the terms and settle; every step prints a NearBlocks link. About 70 s.
+- **N agents racing:** `TAKERS=3 U=https://near-private-otc-productio999n.up.railway.app node scripts/agents/run.mjs` - see several takers read the same deal; the first accept settles, the rest get a 409 ("settling right now" or "Too late"). Each extra taker costs 3 more OutLayer enclave calls.
+- **Sub-account agents:** `PARENT_ID=<your>.testnet PARENT_KEY=ed25519:<key> U=https://near-private-otc-productio999n.up.railway.app node scripts/agents/run.mjs --subaccounts` - see each agent get its own sub-account `maker-xxxx.<your>.testnet` (0.05 NEAR from the parent), register its key on the verifier with `add_public_key`, then trade. It also adds a function-call key limited to the verifier and shows that this key is refused at sign-in.
+- **Negotiation:** `U=https://near-private-otc-productio999n.up.railway.app node scripts/agents/run.mjs --negotiate` - see the taker counter below the listing (`COUNTER`, default 90%), the maker read it and either accept (at or above `FLOOR`, default 95%) or counter back halfway, then the taker accept the maker's counter (at or below `LIMIT`, default 97%, else decline) and settle via `execute_intents`. About 105 s and 11 OutLayer enclave calls.
 - Code: `scripts/agents/lib.mjs` (an `Agent` class: `signIn`, `faucet`, `postDeal`, `requestTerms`, `readTerms`, `accept`, `counter`, `acceptOffer`, `decline`, `cancel`) and `scripts/agents/run.mjs`.
 
 ### Sub-accounts and limited keys: what works
