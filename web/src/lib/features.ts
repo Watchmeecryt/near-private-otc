@@ -10,6 +10,7 @@ export const FEATURES: [string, string, string][] = [
   ["Storage deposits (NEP-145)", "The verifier is pre-registered on each token so deposits land without any setup on your side. Your first withdrawal of a token registers storage on your account (0.00125 NEAR).", "https://docs.near.org/smart-contracts/anatomy/storage"],
   ["Relayer-paid gas", `${KEEPER} pays for execute_intents, so signing deals costs you nothing. `, "https://docs.near.org/chain-abstraction/meta-transactions"],
   ["OutLayer TEE (Intel TDX)", `Terms are sealed to an enclave key that exists only inside ${OUTLAYER_PROJECT}. The keeper calls outlayer.testnet request_execution (yield/resume), so every reveal and match is a NEAR transaction.`, "https://outlayer.fastnear.com"],
+  ["Cross-chain deals via 1Click", "Fund from Base, Arbitrum or Ethereum Sepolia and receive on any of them or on NEAR; settlement stays in NEAR Intents. Testnet uses Tidepool, the community-built 1Click-compatible API; mainnet uses NEAR's official 1Click.", "https://www.usetidepool.tech"],
   ["NEP-141 test tokens & wNEAR", "Tidepool's six NEP-141 test tokens (USDC, USDT, wNEAR, ETH, wBTC, XAUT) on tidepool-sandbox.testnet.", "https://docs.near.org/primitives/ft"],
   ["NearBlocks", "Every seal, reveal, settlement and cancel links to its transaction on testnet.nearblocks.io.", EXPLORER],
 ];

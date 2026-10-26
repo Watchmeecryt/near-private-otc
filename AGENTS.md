@@ -32,9 +32,10 @@ Built at NEAR HACKATHON 2026.
 | --- | --- |
 | Verifier | verifier.tidepool-sandbox.testnet |
 | Relayer/keeper | otcdesk.testnet |
-| Tokens (Tidepool) | usdc, usdt, wnear, eth, wbtc, xaut `.tidepool-sandbox.testnet` |
+| Tokens (Tidepool) | usdc, usdt, wnear, eth, wbtc, xaut `.tidepool-sandbox.testnet`, plus bridged nep141:<base|arb|eth>-0x<erc20>.tp-omft.testnet (USDC.base, USDT.base, USDC.arb, USDT.arb, USDC.eth, USDT.eth: Tidepool's bridged testnet stablecoins) |
+| Cross-chain | Cross-chain deals, settled by NEAR Intents: fund a deal from an EVM testnet (Base, Arbitrum or Ethereum Sepolia USDC/USDT) and receive on any supported chain or keep it on NEAR. Cross-chain legs go through the 1Click API: on testnet the app uses Tidepool (https://www.usetidepool.tech), the community-built 1Click-compatible API and bridge; on mainnet it uses NEAR's official 1Click. The deal itself always settles atomically inside the NEAR Intents verifier, so the privacy model is unchanged. Keeper routes: POST /api/bridge/quote {account, direction in|out, chain base|arb|eth, base USDC|USDT, asset, amount, evm}, POST /api/bridge/send {account, signed transfer intent, depositAddress}, POST /api/bridge/submit {txHash, depositAddress}, GET /api/bridge/status?depositAddress=. Agents: `XOUT="arb USDC 0x…" node scripts/agents/run.mjs`. |
 | OutLayer project | otcdesk-enclave.testnet/private-otc |
-| Enclave wasm sha256 | a1ad0d61d5981b0e5a6f3afd805746e22f4ae0805aa14087360448575615d760 (Tidepool verifier + six Tidepool tokens, Privy app cmvi99u1e01os0il20daip5mv; served from /enclave/<hash>.wasm on the app) |
+| Enclave wasm sha256 | 5f2ba3f1fc6b3ab386fef21dbc3b32466843499833f27c3d4c6682eae403e5da (Tidepool verifier + six Tidepool tokens + six bridged USDC/USDT; previous a1ad0d61d5981b0e5a6f3afd805746e22f4ae0805aa14087360448575615d760, Privy app cmvi99u1e01os0il20daip5mv; served from /enclave/<hash>.wasm on the app) |
 | Enclave pubkey | 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8 |
 | App | `https://near-private-otc-productio999n.up.railway.app` or `http://127.0.0.1:8790` locally (`/api/health`) |
 

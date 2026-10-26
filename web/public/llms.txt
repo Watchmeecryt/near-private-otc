@@ -7,7 +7,8 @@ Live app (NEAR testnet): https://near-private-otc-productio999n.up.railway.app
 ## Key facts
 - Verifier: verifier.tidepool-sandbox.testnet (near/intents defuse v0.4.2 release wasm)
 - Relayer: otcdesk.testnet
-- Tokens (Tidepool test tokens, no value): USDC, USDT, wNEAR, ETH, wBTC, XAUT = <usdc|usdt|wnear|eth|wbtc|xaut>.tidepool-sandbox.testnet
+- Tokens (Tidepool test tokens, no value): USDC, USDT, wNEAR, ETH, wBTC, XAUT = <usdc|usdt|wnear|eth|wbtc|xaut>.tidepool-sandbox.testnet; bridged: nep141:<base|arb|eth>-0x<erc20>.tp-omft.testnet (USDC.base, USDT.base, USDC.arb, USDT.arb, USDC.eth, USDT.eth: Tidepool's bridged testnet stablecoins)
+- Cross-chain: Cross-chain deals, settled by NEAR Intents: fund a deal from an EVM testnet (Base, Arbitrum or Ethereum Sepolia USDC/USDT) and receive on any supported chain or keep it on NEAR. Cross-chain legs go through the 1Click API: on testnet the app uses Tidepool (https://www.usetidepool.tech), the community-built 1Click-compatible API and bridge; on mainnet it uses NEAR's official 1Click. The deal itself always settles atomically inside the NEAR Intents verifier, so the privacy model is unchanged. Endpoints: POST /api/bridge/quote, POST /api/bridge/send, POST /api/bridge/submit, GET /api/bridge/status.
 - Enclave: OutLayer project otcdesk-enclave.testnet/private-otc, pubkey 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8
 - Sign-in: Privy (Google) → NEAR implicit account, or a NEAR wallet via Wallet Selector; the board needs no sign-in
 - Built at NEAR HACKATHON 2026; track: defi (privacy is a supporting feature: terms sealed in OutLayer TDX)

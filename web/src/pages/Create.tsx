@@ -5,6 +5,7 @@ import { LockKey, ArrowsDownUp } from "@phosphor-icons/react";
 import { Top, NeedSignIn } from "../app/Shell";
 import { useApp } from "../app/state";
 import { TOKENS, toUnits, fromUnits } from "@shared/otc.mjs";
+import { tokenLabel } from "@shared/otc.mjs";
 import { signedOffer, newDealId, balances, signApproval } from "../lib/deal";
 import { isWallet } from "../lib/signer";
 import { walletCanSign } from "../lib/wallet";
@@ -26,7 +27,7 @@ function TokenRow({ label, amount, setAmount, token, setToken, bal, hint, usdVal
       <div className="sr-top"><span>{label}</span>{bal !== undefined && label === "You sell" && <button type="button" className="sr-bal" onClick={() => setAmount(fromUnits(bal, t.decimals, 6))}>Balance {nice(fromUnits(bal, t.decimals, 6))} · Max</button>}</div>
       <div className="sr-main">
         <input className="sr-amt mono" inputMode="decimal" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value.replace(",", "."))} aria-label={`${label} amount`} />
-        <div className="sr-tok"><Pick label={`${label} token`} value={token} onChange={setToken} options={TOKENS.map((x: any) => ({ value: x.id, label: x.symbol, lead: <TokenIcon t={x.symbol} size={20} /> }))} /></div>
+        <div className="sr-tok"><Pick label={`${label} token`} value={token} onChange={setToken} options={TOKENS.map((x: any) => ({ value: x.id, label: tokenLabel(x), lead: <TokenIcon t={x.symbol} size={20} /> }))} /></div>
       </div>
       {usdVal ? <div className="sr-usd">≈ {fmtUsd(usdVal)}</div> : null}
       {hint}
@@ -82,7 +83,7 @@ export default function Create() {
       <div className="create-col">
         <div className="card card-pad swap-card">
           <TokenRow label="You sell" usdVal={usd(prices, give) && Number(giveAmt) > 0 ? usd(prices, give)! * Number(giveAmt) : null} amount={giveAmt} setAmount={setGiveAmt} token={give} setToken={pickGive} bal={bal?.[give]}
-            hint={bad(giveAmt) ? <p className="sr-hint err">Enter an amount above 0.</p> : low ? <p className="sr-hint warn-note">You only have {nice(fromUnits(bal![give], tok(give).decimals, 6))} {tok(give).symbol}. <Link to="/app/wallet#faucet" className="link">Get free test tokens →</Link></p> : null} />
+            hint={bad(giveAmt) ? <p className="sr-hint err">Enter an amount above 0.</p> : low ? <p className="sr-hint warn-note">You only have {nice(fromUnits(bal![give], tok(give).decimals, 6))} {tok(give).symbol}. <Link to="/app/wallet#faucet" className="link">Get free test tokens →</Link> or <Link to="/app/wallet?bridge=in" className="link">fund from Base, Arbitrum or Ethereum Sepolia →</Link></p> : null} />
           <div className="swap-mid"><button type="button" className="swap-flip" onClick={flip} aria-label="Swap sides"><ArrowsDownUp size={18} weight="bold" /></button></div>
           <TokenRow label="You receive" usdVal={usd(prices, get) && Number(getAmt) > 0 ? usd(prices, get)! * Number(getAmt) : null} amount={getAmt} setAmount={setReceive} token={get} setToken={pickGet} bal={bal?.[get]}
             hint={bad(getAmt) ? <p className="sr-hint err">Enter an amount above 0.</p> : terms ? <p className="sr-hint">{!manual ? <span className="mkt-tag">≈ market</span> : diff !== null ? <span className={`mkt-tag ${Math.abs(diff) < 0.5 ? "" : diff > 0 ? "up" : "down"}`}>{fmtPct(diff)} vs market</span> : null} <span className="muted">{nice(String(Number(getAmt) / Number(giveAmt)))} {tok(get).symbol} per {tok(give).symbol}</span>{manual && <button type="button" className="sr-bal" style={{ marginLeft: 8 }} onClick={() => setManual(false)}>Reset to market</button>}</p> : null} />

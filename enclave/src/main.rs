@@ -37,6 +37,12 @@ const TOKENS: &[(&str, &str, u32)] = &[
     ("nep141:eth.tidepool-sandbox.testnet", "ETH", 18),
     ("nep141:wbtc.tidepool-sandbox.testnet", "wBTC", 8),
     ("nep141:xaut.tidepool-sandbox.testnet", "XAUT", 6),
+    ("nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet", "USDC.base", 6),
+    ("nep141:base-0xc15cf5600225302675604310094f134e88705e62.tp-omft.testnet", "USDT.base", 6),
+    ("nep141:arb-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet", "USDC.arb", 6),
+    ("nep141:arb-0xc15cf5600225302675604310094f134e88705e62.tp-omft.testnet", "USDT.arb", 6),
+    ("nep141:eth-0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2.tp-omft.testnet", "USDC.eth", 6),
+    ("nep141:eth-0x650f12ba31777de8ded47287a8cc86be737646fe.tp-omft.testnet", "USDT.eth", 6),
 ];
 
 #[derive(Deserialize)]
@@ -138,7 +144,7 @@ fn offer(hexct: &str) -> Result<(String, Offer, String), String> {
 /// Coarse public facts: pair (base/quote), side and deadline only. No size or price hint of any kind.
 fn coarse(o: &Offer, deadline: &str) -> Result<Value, String> {
     let t = &o.terms;
-    let rank = |id: &str| TOKENS.iter().position(|x| x.0 == id).unwrap_or(9);
+    let rank = |id: &str| TOKENS.iter().position(|x| x.0 == id).unwrap_or(99);
     // quote = the lower-ranked token (USDC, USDT, wNEAR, ETH, wBTC, XAUT)
     let (quote, base, side) = if rank(&t.sell_token) < rank(&t.buy_token) { (&t.sell_token, &t.buy_token, "buy") } else { (&t.buy_token, &t.sell_token, "sell") };
     let (qs, _) = token(quote)?; let (bs, _) = token(base)?;

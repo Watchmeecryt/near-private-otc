@@ -1,3 +1,4 @@
+import { Bridge } from "../components/Bridge";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useToast } from "@unlocalhosted/metalui";
@@ -144,6 +145,7 @@ export default function Deal() {
         {isMaker && <p className="tiny muted">{d.visibility === "private" ? "Not on the board. Making it public can't be undone." : "Public deals can't be made private again."}</p>}
         <div className="d2-row"><button className="btn btn-ghost btn-sm" onClick={share}><LinkSimple size={15} /> Copy link</button><span className="tiny muted mono">{location.host}/d/{id.slice(0, 8)}…</span></div>
         <div className="d2-row tiny"><span className="muted">On chain</span><Tx hash={d.check_tx} label="sealed" />{d.settle_tx && <Tx hash={d.settle_tx} label="settled" />}</div>
+        {d.status === "Settled" && me && my && <div className="d2-xchain"><b className="small">Receive on another chain</b><p className="tiny muted">Settlement happened inside NEAR Intents. Keep the tokens there, withdraw to NEAR, or pay them out to an EVM testnet.</p><Bridge account={me} initial={{ direction: "out" }} compact /></div>}
         {isMaker && (
           <div className="viewers">
             <div className="row-between"><b className="small">Viewed by</b><span className="tiny muted">{viewers.length} viewer{viewers.length === 1 ? "" : "s"} · {totalViews} view{totalViews === 1 ? "" : "s"}</span></div>

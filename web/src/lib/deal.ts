@@ -55,3 +55,8 @@ export async function balances(account: string): Promise<Record<string, string>>
   return Object.fromEntries(ids.map((id: string, i: number) => [id, r[i] || "0"]));
 }
 export const newDealId = () => { const a = "23456789abcdefghjkmnpqrstuvwxyz"; return Array.from(randomBytes(16), (b: number) => a[b % a.length]).join(""); };
+/** One NEAR Intents transfer inside the verifier (used to fund a 1Click cross-chain payout). */
+export async function transferPayload(account: string, receiver: string, tokenId: string, amount: string) {
+  const p = intentPayload({ signer: account, intents: [{ intent: "transfer", receiver_id: receiver, tokens: { [tokenId]: amount } }], deadlineMs: Date.now() + 10 * 60000 });
+  return signNep(account, p);
+}

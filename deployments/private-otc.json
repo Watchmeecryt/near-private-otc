@@ -30,12 +30,25 @@
     "enclave_request_verify": "ALbW42GGygPt5bEWFSGiHR5ZDnz8EX7gpjHsMZBLBLEy"
   },
   "outlayer_project": "otcdesk-enclave.testnet/private-otc",
-  "enclave_wasm_sha256": "a1ad0d61d5981b0e5a6f3afd805746e22f4ae0805aa14087360448575615d760",
-  "enclave_wasm_url": "https://near-private-otc-productio999n.up.railway.app/enclave/a1ad0d61d5981b0e5a6f3afd805746e22f4ae0805aa14087360448575615d760.wasm",
+  "enclave_wasm_sha256": "5f2ba3f1fc6b3ab386fef21dbc3b32466843499833f27c3d4c6682eae403e5da",
+  "enclave_wasm_url": "https://near-private-otc-productio999n.up.railway.app/enclave/5f2ba3f1fc6b3ab386fef21dbc3b32466843499833f27c3d4c6682eae403e5da.wasm",
   "enclave_pubkey": "03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8",
   "verifier_wasm": "near/intents release defuse/v0.4.2 defuse.wasm sha256 f67f9559b3b512c52dfa11723a28b9119bcf773ac01780370d6409e5f1fb20e5",
   "token_wasm": "near/intents releases/fungible-token.wasm sha256 12c5f9bd9136b4396823478281a61368b4c74cdaf35ab5743b302c3aac55a354",
   "app_url": "https://near-private-otc-productio999n.up.railway.app",
   "tidepool": "https://www.usetidepool.tech",
-  "legacy_otcdesk_verifier": "otcdesk-intents.testnet"
+  "legacy_otcdesk_verifier": "otcdesk-intents.testnet",
+  "bridged_tokens": [
+    "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+    "nep141:base-0xc15cf5600225302675604310094f134e88705e62.tp-omft.testnet",
+    "nep141:arb-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+    "nep141:arb-0xc15cf5600225302675604310094f134e88705e62.tp-omft.testnet",
+    "nep141:eth-0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2.tp-omft.testnet",
+    "nep141:eth-0x650f12ba31777de8ded47287a8cc86be737646fe.tp-omft.testnet"
+  ],
+  "cross_chain": {
+    "testnet": "Tidepool 1Click-compatible API https://www.usetidepool.tech/v0",
+    "mainnet": "NEAR 1Click (ONECLICK_URL)",
+    "settlement": "NEAR Intents verifier"
+  }
 }

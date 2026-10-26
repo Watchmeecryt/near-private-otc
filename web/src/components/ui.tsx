@@ -47,12 +47,16 @@ const ICON: Record<string, (k: string) => ReactNode> = {
   wBTC: (k) => <><circle cx="16" cy="16" r="16" fill="#F7931A" /><path key={k} d="M22.5 14c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6-1.3-.3.7-2.7-1.6-.4-.7 2.7-1-.3-2.3-.6-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8 1l-.8 3.1.2.1-.2-.1-1.1 4.4c-.1.2-.3.5-.8.4 0 0-1.2-.3-1.2-.3l-.8 1.8 2.1.5 1.2.3-.7 2.8 1.6.4.7-2.7 1.3.3-.7 2.7 1.6.4.7-2.8c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.3 1.9-1 2.1-2.5zm-3.7 5.2c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.5 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.9.6 3.4 2.5z" fill="#fff" /></>,
   XAUT: (k) => <><circle cx="16" cy="16" r="16" fill="#C9A24B" /><path key={k} d="M8 21.5l2.2-5.5h11.6l2.2 5.5z M11.2 15l1.6-4h6.4l1.6 4z" fill="#FFF4D6" /><path d="M8 21.5h16v1.4H8z" fill="#8A6A22" /></>,
 };
+/** Origin-chain badge for Tidepool-bridged tokens: [colour, letter]. */
+export const CHAIN_BADGE: Record<string, [string, string]> = { base: ["#0052FF", "B"], arb: ["#213147", "A"], eth: ["#627EEA", "E"] };
 const symId = (s: string) => s.replace(/^.*?\b(usdc|usdt|wnear|wbtc|eth|xaut)\..*$/i, (_m, x) => ({ usdc: "USDC", usdt: "USDT", wnear: "wNEAR", wbtc: "wBTC", eth: "ETH", xaut: "XAUT" } as any)[x.toLowerCase()]);
 /** Inline SVG token mark (USDC, USDT, wNEAR, ETH, wBTC, XAUT); accepts a token id or symbol. */
 export function TokenIcon({ t, size = 28 }: { t: string; size?: number }) {
-  const k = tokenById(t)?.symbol || symId(t);
+  const tk: any = tokenById(t);
+  const k = tk?.base || tk?.symbol || symId(t);
   const draw = ICON[k];
-  return <svg className="tok-ico" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">{draw ? draw(k) : <circle cx="16" cy="16" r="16" fill="var(--brand)" />}</svg>;
+  const badge = tk?.chain ? CHAIN_BADGE[tk.chain] : null;
+  return <svg className="tok-ico" width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">{draw ? draw(k) : <circle cx="16" cy="16" r="16" fill="var(--brand)" />}{badge && <g><circle cx="25" cy="25" r="7" fill="#fff" /><circle cx="25" cy="25" r="5.6" fill={badge[0]} /><text x="25" y="27.4" textAnchor="middle" fontSize="6.4" fontWeight="700" fill="#fff" fontFamily="system-ui,sans-serif">{badge[1]}</text></g>}</svg>;
 }
 /** Two overlapping token marks for a pair like "ETH/USDC". */
 export function PairIcon({ a, b, size = 40 }: { a: string; b: string; size?: number }) {

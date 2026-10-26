@@ -80,6 +80,15 @@ export class Agent {
   }
   /** Decline a live counter addressed to me (no enclave call). */
   decline(id, offerId) { return this.http("POST", `/api/deals/${id}/decline`, { account: this.account, offer_id: offerId }); }
+  /** Cross-chain payout through the 1Click API (Tidepool on testnet): quote `amount` of `asset` from my verifier
+   *  balance -> `base` (USDC/USDT) on EVM `chain` to `evm`, sign one transfer to the quote's deposit account, relay it. */
+  async bridgeOut({ asset, amount, chain, base, evm }) {
+    const q = await this.http("POST", "/api/bridge/quote", { account: this.account, direction: "out", chain, base, asset: tokenById(asset).id, amount, evm });
+    const signed = await this.nep(intentPayload({ signer: this.account, intents: [{ intent: "transfer", receiver_id: q.depositAddress, tokens: { [q.asset]: q.amountIn } }], deadlineMs: Date.now() + 600000, nonce: randomBytes(32) }));
+    const r = await this.http("POST", "/api/bridge/send", { account: this.account, signed, depositAddress: q.depositAddress });
+    return { ...q, ...r };
+  }
+  bridgeStatus(depositAddress) { return this.http("GET", `/api/bridge/status?depositAddress=${encodeURIComponent(depositAddress)}`); }
   async cancel(id) {
     const signed = []; for (const n of this.offerNonces || []) signed.push(await this.nep(intentPayload({ signer: this.account, intents: [], deadlineMs: Date.now() + 600000, nonce: Uint8Array.from(Buffer.from(n, "base64")) })));
     return this.http("POST", `/api/deals/${id}/cancel`, { account: this.account, signed });

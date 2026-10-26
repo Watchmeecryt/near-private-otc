@@ -16,7 +16,26 @@ export const TOKENS = [
   { id: "nep141:eth.tidepool-sandbox.testnet", contract: "eth.tidepool-sandbox.testnet", symbol: "ETH", decimals: 18, faucet: "0.03", cg: "ethereum" },
   { id: "nep141:wbtc.tidepool-sandbox.testnet", contract: "wbtc.tidepool-sandbox.testnet", symbol: "wBTC", decimals: 8, faucet: "0.001", cg: "bitcoin" },
   { id: "nep141:xaut.tidepool-sandbox.testnet", contract: "xaut.tidepool-sandbox.testnet", symbol: "XAUT", decimals: 6, faucet: "0.03", cg: "tether-gold" },
+  // Tidepool bridged EVM testnet tokens (1Click omft naming): NEP-141s inside the same verifier, backed by
+  // ERC-20s locked in Tidepool's vault on each chain. `chain` = origin chain key.
+  { id: "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet", contract: "base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet", symbol: "USDC.base", base: "USDC", chain: "base", evm: "0x38d81431b9f76d9699af7517040d5221d9dea252", decimals: 6, faucet: "100", cg: "usd-coin" },
+  { id: "nep141:base-0xc15cf5600225302675604310094f134e88705e62.tp-omft.testnet", contract: "base-0xc15cf5600225302675604310094f134e88705e62.tp-omft.testnet", symbol: "USDT.base", base: "USDT", chain: "base", evm: "0xc15cf5600225302675604310094f134e88705e62", decimals: 6, faucet: "100", cg: "tether" },
+  { id: "nep141:arb-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet", contract: "arb-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet", symbol: "USDC.arb", base: "USDC", chain: "arb", evm: "0x38d81431b9f76d9699af7517040d5221d9dea252", decimals: 6, faucet: "100", cg: "usd-coin" },
+  { id: "nep141:arb-0xc15cf5600225302675604310094f134e88705e62.tp-omft.testnet", contract: "arb-0xc15cf5600225302675604310094f134e88705e62.tp-omft.testnet", symbol: "USDT.arb", base: "USDT", chain: "arb", evm: "0xc15cf5600225302675604310094f134e88705e62", decimals: 6, faucet: "100", cg: "tether" },
+  { id: "nep141:eth-0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2.tp-omft.testnet", contract: "eth-0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2.tp-omft.testnet", symbol: "USDC.eth", base: "USDC", chain: "eth", evm: "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2", decimals: 6, faucet: "100", cg: "usd-coin" },
+  { id: "nep141:eth-0x650f12ba31777de8ded47287a8cc86be737646fe.tp-omft.testnet", contract: "eth-0x650f12ba31777de8ded47287a8cc86be737646fe.tp-omft.testnet", symbol: "USDT.eth", base: "USDT", chain: "eth", evm: "0x650f12ba31777de8ded47287a8cc86be737646fe", decimals: 6, faucet: "100", cg: "tether" },
 ];
+// EVM testnets reachable through Tidepool's bridge (testnet stand-in for NEAR's 1Click on mainnet).
+export const CHAINS = [
+  { key: "near", name: "NEAR", chainId: null, explorer: "https://testnet.nearblocks.io" },
+  { key: "base", name: "Base Sepolia", chainId: 84532, explorer: "https://sepolia.basescan.org" },
+  { key: "arb", name: "Arbitrum Sepolia", chainId: 421614, explorer: "https://sepolia.arbiscan.io" },
+  { key: "eth", name: "Ethereum Sepolia", chainId: 11155111, explorer: "https://sepolia.etherscan.io" },
+];
+export const chainOf = (k) => CHAINS.find((c) => c.key === k);
+export const bridged = (chain, base) => TOKENS.find((t) => t.chain === chain && t.base === base);
+export const baseSym = (t) => t?.base || t?.symbol;
+export const tokenLabel = (t) => (t?.chain ? `${t.base} (${chainOf(t.chain).name})` : t?.symbol);
 export const tokenById = (id) => TOKENS.find((t) => t.id === id || t.contract === id || t.symbol === id);
 
 const enc = new TextEncoder();

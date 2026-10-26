@@ -81,6 +81,20 @@ try {
 if (settled) {
   maker.log(`balances: ${await maker.balance(SELL[1])} ${SELL[1]}, ${await maker.balance(BUY[1])} ${BUY[1]}`);
   settled.by.log(`balances: ${await settled.by.balance(SELL[1])} ${SELL[1]}, ${await settled.by.balance(BUY[1])} ${BUY[1]}`);
+  if (process.env.XOUT) {
+    // Cross-chain payout: XOUT="arb USDC 0xRecipient" sends the maker's proceeds (BUY token) to that EVM chain.
+    const [chain, base, evm] = process.env.XOUT.split(" ");
+    const amount = await maker.balance(BUY[1]);
+    maker.log(`paying out ${amount} ${BUY[1]} to ${base} on ${chain} (${evm}) via the 1Click API …`);
+    const b = await maker.bridgeOut({ asset: BUY[1], amount, chain, base, evm });
+    maker.log(`quote ${b.amountIn} -> ~${b.amountOutFormatted} ${base}; NEAR Intents transfer to ${b.depositAddress}  ${C.dim}${tx(b.tx)}${C.x}`);
+    for (let i = 0; i < 40; i++) {
+      const st = await maker.bridgeStatus(b.depositAddress).catch(() => ({}));
+      const out = st.swapDetails?.destinationChainTxHashes || [];
+      if (st.status === "SUCCESS" || ["REFUNDED", "FAILED"].includes(st.status)) { maker.log(`bridge ${st.status} ${out.map((h) => h.explorerUrl || h.hash).join(" ")}`); console.log("XOUT_STATUS " + JSON.stringify(st)); break; }
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
   sys(`deal ${d.id} status: ${(await maker.http("GET", `/api/deals/${d.id}`)).status}`);
 }
 

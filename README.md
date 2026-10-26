@@ -79,7 +79,9 @@ All steps run against the live app (https://near-private-otc-productio999n.up.ra
 | Reference prices | New deal autofills the receive amount at CoinGecko market (USDC, USDT, wNEAR→NEAR, ETH, wBTC→BTC, XAUT→Tether Gold) and shows % vs market on deals and counters; reference only | [CoinGecko API](https://docs.coingecko.com/reference/simple-price) |
 | NearBlocks | Every seal, settlement and cancel links to testnet.nearblocks.io | [NearBlocks](https://testnet.nearblocks.io) |
 
-Considered and skipped: chain signatures (no cross-chain leg needed on testnet), passkeys / WebAuthn intents, 1Click / confidential relay (mainnet only), partial fills (see limits).
+| Cross-chain via 1Click (Tidepool on testnet) | Cross-chain deals, settled by NEAR Intents: fund a deal from an EVM testnet (Base, Arbitrum or Ethereum Sepolia USDC/USDT) and receive on any supported chain or keep it on NEAR. Cross-chain legs go through the 1Click API: on testnet the app uses Tidepool (https://www.usetidepool.tech), the community-built 1Click-compatible API and bridge; on mainnet it uses NEAR's official 1Click. The deal itself always settles atomically inside the NEAR Intents verifier, so the privacy model is unchanged. Bridged tokens: nep141:<base|arb|eth>-0x<erc20>.tp-omft.testnet (USDC.base, USDT.base, USDC.arb, USDT.arb, USDC.eth, USDT.eth: Tidepool's bridged testnet stablecoins). API: `/api/bridge/quote`, `/api/bridge/send`, `/api/bridge/submit`, `/api/bridge/status`. | [1Click](https://docs.near-intents.org/near-intents/integration/distribution-channels/1click-api), [Tidepool](https://www.usetidepool.tech) |
+
+Considered and skipped: passkeys / WebAuthn intents, confidential relay (mainnet only), partial fills (see limits).
 
 ## Privacy model (honest version)
 
@@ -141,7 +143,7 @@ Chips: **2 min (demo)**, 1h, 24h, 7d. The chosen time becomes the `deadline` ins
 
 ## Enclave output
 
-The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `a1ad0d61d5981b0e5a6f3afd805746e22f4ae0805aa14087360448575615d760` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
+The enclave's `check` output (public on chain in the OutLayer execution result) contains only deal id, maker, `to`, pair, side, deadline and the commitment hash. No size range or price hint. Enclave wasm sha256 `5f2ba3f1fc6b3ab386fef21dbc3b32466843499833f27c3d4c6682eae403e5da` (same enclave key, since it is derived from the same keystore secret). Outputs from before this version still include a coarse size range; those were test deals.
 
 ## Sign-in: Privy or a NEAR wallet
 
@@ -171,7 +173,9 @@ The enclave's `check` output (public on chain in the OutLayer execution result) 
 | ETH (18 dp) | `eth.tidepool-sandbox.testnet` | https://testnet.nearblocks.io/address/eth.tidepool-sandbox.testnet |
 | wBTC (8 dp) | `wbtc.tidepool-sandbox.testnet` | https://testnet.nearblocks.io/address/wbtc.tidepool-sandbox.testnet |
 | XAUT (6 dp) | `xaut.tidepool-sandbox.testnet` | https://testnet.nearblocks.io/address/xaut.tidepool-sandbox.testnet |
-| OutLayer project | `otcdesk-enclave.testnet/private-otc` | wasm sha256 `a1ad0d61…d760` (`deployments/private-otc.json`) |
+| Bridged USDC/USDT (6 dp, Tidepool) | `nep141:base-…`, `nep141:arb-…`, `nep141:eth-…` `.tp-omft.testnet` | Base Sepolia / Arbitrum Sepolia / Ethereum Sepolia via https://www.usetidepool.tech |
+| Cross-chain API | 1Click: Tidepool `https://www.usetidepool.tech/v0` on testnet, NEAR 1Click on mainnet (`ONECLICK_URL`) | https://docs.near-intents.org |
+| OutLayer project | `otcdesk-enclave.testnet/private-otc` | wasm sha256 `5f2ba3f1…e5da` (`deployments/private-otc.json`) |
 
 Deployment transaction hashes: `deployments/private-otc.json`.
 

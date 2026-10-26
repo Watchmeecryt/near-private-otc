@@ -7,15 +7,18 @@ import { api } from "../lib/api";
 import { balances, withdrawPayload } from "../lib/deal";
 import { sendTx, viewCall, ensureFunded, balanceOf } from "../lib/privy";
 import { TOKENS, fromUnits, toUnits, VERIFIER } from "@shared/otc.mjs";
+import { tokenLabel } from "@shared/otc.mjs";
 import { walletTx } from "../lib/wallet";
 import { Pick, SignPanel, TokenIcon } from "../components/ui";
 import { Tx } from "../components/ui";
+import { Bridge } from "../components/Bridge";
 
 const STORAGE = "1250000000000000000000"; // 0.00125 NEAR
 type Act = { kind: string; detail: string; tx: string; at: number };
 const actKey = (a: string) => `otc-activity-${a}`;
 const readActs = (a: string): Act[] => { try { return JSON.parse(localStorage.getItem(actKey(a)) || "[]"); } catch { return []; } };
 
+const initialBridge = () => { const p = new URLSearchParams(location.search); const d = p.get("bridge"); return d === "in" || d === "out" ? { direction: d as "in" | "out", asset: p.get("asset") || undefined, amount: p.get("amount") || undefined, chain: p.get("chain") || undefined } : undefined; };
 const claimKey = (a: string, s: string) => `otc-tp-claim-${a}-${s}`;
 
 export default function WalletPage() {
@@ -28,7 +31,8 @@ export default function WalletPage() {
   const [acts, setActs] = useState<Act[]>([]);
   const load = () => account && balances(account).then(setBal).catch(() => {});
   useEffect(() => { if (!account) return; setActs(readActs(account)); load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [account]);
-  useEffect(() => { if (location.hash === "#faucet") setTimeout(() => document.getElementById("faucet")?.scrollIntoView({ behavior: "smooth" }), 200); }, []);
+  useEffect(() => { if (new URLSearchParams(location.search).get("bridge")) setTimeout(() => document.getElementById("bridge")?.scrollIntoView({ behavior: "smooth" }), 300);
+    if (location.hash === "#faucet") setTimeout(() => document.getElementById("faucet")?.scrollIntoView({ behavior: "smooth" }), 200); }, []);
   if (!account) return <><Top title="Wallet" /><NeedSignIn what="Sign in to see your balances, claim test tokens and withdraw to your NEAR account." /></>;
   const record = (a: Act) => { const n = [a, ...readActs(account)].slice(0, 20); localStorage.setItem(actKey(account), JSON.stringify(n)); setActs(n); };
   const run = async (kind: string, detail: string, f: () => Promise<string>) => {
@@ -90,7 +94,7 @@ export default function WalletPage() {
             <h3 className="h3"><Coins size={18} weight="duotone" /> Deposit from your wallet</h3>
             <p className="small muted">Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into Private OTC so deals can settle. You pay a little gas.</p>
             <div className="field-row"><label className="field"><span>Amount</span><input className="input mono" inputMode="decimal" value={depAmt} onChange={(e) => setDepAmt(e.target.value.replace(",", "."))} placeholder="0.5" /></label>
-              <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.map((x: any) => ({ value: x.id, label: x.symbol }))} /></div></div>
+              <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.map((x: any) => ({ value: x.id, label: tokenLabel(x) }))} /></div></div>
             <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(depAmt) > 0)} onClick={deposit}>{busy === "Deposit" ? "Waiting for wallet…" : "Deposit"}</button>
           </section>
         )}
@@ -98,13 +102,14 @@ export default function WalletPage() {
           <h3 className="h3"><ArrowUp size={18} /> Withdraw</h3>
           <p className="small muted">Move tokens from the verifier back to your own NEAR account <span className="mono">{account}</span>. You sign a withdrawal intent; the relayer pays the gas.</p>
           <div className="field-row">
-            <div className="field"><span>Token</span><Pick label="Withdraw token" value={wdTok} onChange={(v: string) => { setWdTok(v); setWdAmt(""); }} options={TOKENS.map((x: any) => ({ value: x.id, label: x.symbol }))} /></div>
+            <div className="field"><span>Token</span><Pick label="Withdraw token" value={wdTok} onChange={(v: string) => { setWdTok(v); setWdAmt(""); }} options={TOKENS.map((x: any) => ({ value: x.id, label: tokenLabel(x) }))} /></div>
             <label className="field"><span>Amount <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 6, padding: "0 8px", minHeight: 0, fontSize: 11 }} onClick={() => setWdAmt(wdMax)} disabled={!bal}>Max</button></span><input className="input mono" inputMode="decimal" value={wdAmt} onChange={(e) => setWdAmt(e.target.value.replace(",", "."))} placeholder="0.0" /></label>
           </div>
           <p className="tiny muted">Available: <span className="mono">{bal ? fromUnits(bal[wt.id] || "0", wt.decimals, 6) : "…"} {wt.symbol}</span></p>
           <SignPanel kind={`ft_withdraw intent (NEP-413) → ${wt.contract}, receiver ${account}`} gas="Relayer pays. The first withdrawal of a token asks for a 0.00125 NEAR storage_deposit from your account." />
           <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(wdAmt) > 0)} onClick={withdraw}>{busy === "Withdraw" ? "Withdrawing…" : "Sign & withdraw"}</button>
         </section>
+        <div id="bridge"><Bridge account={account} balances={bal} initial={initialBridge()} onDone={load} /></div>
         <section className="card card-pad w-act">
           <h3 className="h3"><ClockCounterClockwise size={18} /> Activity</h3>
           {acts.length === 0 ? <p className="small muted">No wallet activity on this device yet.</p> : (

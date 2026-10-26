@@ -9,7 +9,7 @@ import { account, call, view, lastValue, RPC } from "./chain.mjs";
 import { enclave } from "./enclave.mjs";
 import { fund, privyNearAccounts } from "./fund.mjs";
 import { walletLogin } from "./walletauth.mjs";
-import { VERIFIER, TIDEPOOL, TOKENS, tokenById, toUnits, base58, randomBytes } from "../shared/otc.mjs";
+import { VERIFIER, TIDEPOOL, TOKENS, CHAINS, bridged, tokenById, toUnits, base58, randomBytes } from "../shared/otc.mjs";
 
 const RPC_UPSTREAMS = (process.env.RPC_UPSTREAMS || "https://test.rpc.fastnear.com,https://neart.lava.build,https://rpc.testnet.pagoda.co").split(",");
 const PORT = Number(process.env.PORT || 8790);
@@ -98,12 +98,46 @@ const msgOf = (p) => JSON.parse(p.payload.message);
 
 // ---- faucet ----
 // Tidepool's faucet (intents mode): credits all six Tidepool test tokens straight into the account's
-// balance inside the Tidepool verifier. Tidepool limits it to one drip per account per hour.
+// balance inside the Tidepool verifier, plus the six bridged EVM USDC/USDT (Base, Arbitrum, Ethereum Sepolia). Tidepool limits it to one drip per account per hour.
 async function faucet(accountId, clientIp) {
-  const r = await fetch(`${TIDEPOOL}/v0/faucet`, { method: "POST", headers: { "content-type": "application/json", ...(clientIp ? { "x-forwarded-for": clientIp } : {}) }, body: JSON.stringify({ accountId, mode: "intents" }), signal: AbortSignal.timeout(60000) });
+  const r = await fetch(`${TIDEPOOL}/v0/faucet`, { method: "POST", headers: { "content-type": "application/json", ...(clientIp ? { "x-forwarded-for": clientIp } : {}) }, body: JSON.stringify({ accountId, mode: "intents", assets: TOKENS.map((t) => t.id) }), signal: AbortSignal.timeout(60000) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new HttpError(r.status === 429 ? 429 : 502, j.error || j.message || `Tidepool faucet error ${r.status}`);
   return { tx: j.transactions?.[0]?.txHash, drips: j.drips, source: "Tidepool" };
+}
+
+
+// ---- cross-chain deposits and payouts (1Click API) ----
+// On testnet this is Tidepool (https://www.usetidepool.tech), a community-built 1Click-compatible API with
+// testnet EVM bridges; on mainnet the same calls go to NEAR's official 1Click (ONECLICK_URL). Deals still
+// settle inside the NEAR Intents verifier; this only moves funds into or out of a user's verifier balance.
+const ONECLICK = (process.env.ONECLICK_URL || `${TIDEPOOL}/v0`).replace(/\/$/, "");
+const EVM_RE = /^0x[0-9a-fA-F]{40}$/;
+async function oneclick(pathname, body) {
+  const r = await fetch(ONECLICK + pathname, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) } : { signal: AbortSignal.timeout(15000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new HttpError(r.status >= 500 ? 502 : r.status, j.message || j.error || `1Click error ${r.status}`);
+  return j;
+}
+// direction "in": send `base` (USDC/USDT) on EVM `chain` -> credited as `asset` to your verifier balance.
+// direction "out": pay `amount` of `asset` from your verifier balance -> `base` delivered on EVM `chain` to `evm`.
+async function bridgeQuote({ account: me, direction, chain, base, asset, amount, evm }) {
+  const ext = bridged(chain, base), t = tokenById(asset);
+  if (!ext) throw new HttpError(400, `chain must be one of ${CHAINS.filter((c) => c.key !== "near").map((c) => c.key).join(", ")} and token USDC or USDT`);
+  if (!t) throw new HttpError(400, "unknown asset");
+  if (!EVM_RE.test(evm || "")) throw new HttpError(400, "Enter an EVM address (0x…).");
+  if (ext.id === t.id) throw new HttpError(400, `That is the same token: pick a different ${direction === "in" ? "balance to receive" : "token to pay from"} (1Click needs two different assets).`);
+  const units = toUnits(String(amount), direction === "in" ? ext.decimals : t.decimals);
+  if (BigInt(units) <= 0n) throw new HttpError(400, "Enter an amount above 0.");
+  const common = { dry: false, swapType: "EXACT_INPUT", slippageTolerance: 100, amount: units, deadline: new Date(Date.now() + 3600_000).toISOString(), depositMode: "SIMPLE", referral: "near-private-otc" };
+  const req = direction === "in"
+    ? { ...common, originAsset: ext.id, depositType: "ORIGIN_CHAIN", refundTo: evm, refundType: "ORIGIN_CHAIN", destinationAsset: t.id, recipient: me, recipientType: "INTENTS" }
+    : { ...common, originAsset: t.id, depositType: "INTENTS", refundTo: me, refundType: "INTENTS", destinationAsset: ext.id, recipient: evm, recipientType: "DESTINATION_CHAIN" };
+  const q = await oneclick("/quote", req);
+  const rec = { at: Date.now(), account: me, direction, chain, base, asset: t.id, amount: String(amount), evm, depositAddress: q.quote?.depositAddress, amountIn: q.quote?.amountIn, amountOut: q.quote?.amountOut, amountOutFormatted: q.quote?.amountOutFormatted, correlationId: q.correlationId };
+  (db.bridges ||= []).push(rec); if (db.bridges.length > 2000) db.bridges.shift(); save();
+  log("bridge-quote", direction, chain, base, t.symbol);
+  return { ...rec, quote: q.quote, originAsset: req.originAsset, destinationAsset: req.destinationAsset, provider: ONECLICK.includes("usetidepool") ? "Tidepool (testnet 1Click)" : "NEAR 1Click", evmToken: ext.evm };
 }
 
 // Reference USD prices (CoinGecko), cached 30 s, keyed by token symbol (USDC, USDT, wNEAR, ETH, wBTC, XAUT).
@@ -117,7 +151,7 @@ async function prices() {
     const j = await r.json();
     if (!j?.near?.usd) throw new Error("bad price response");
     const v = { source: "CoinGecko", at: new Date().toISOString() };
-    for (const t of TOKENS) v[t.symbol] = j[t.cg]?.usd ?? FALLBACK[t.symbol];
+    for (const t of TOKENS) v[t.symbol] = j[t.cg]?.usd ?? FALLBACK[t.base || t.symbol];
     priceCache = { at: Date.now(), v };
   } catch (e) { if (!priceCache.v) throw new HttpError(503, "Price feed unavailable"); }
   return priceCache.v;
@@ -308,6 +342,41 @@ const routes = [
     const { account: me } = await jbody(req); await who(req, me);
     const ipAddr = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
     return faucet(me, ipAddr);
+  }],
+  ["GET", /^\/api\/bridge\/chains$/, async () => ({ chains: CHAINS, tokens: TOKENS.filter((t) => t.chain).map((t) => ({ id: t.id, chain: t.chain, base: t.base, evm: t.evm })), provider: ONECLICK })],
+  ["POST", /^\/api\/bridge\/quote$/, async (req) => {
+    if (limited(req, 20)) throw new HttpError(429, "Slow down.");
+    const b = await jbody(req); await who(req, b.account);
+    if (!["in", "out"].includes(b.direction)) throw new HttpError(400, "direction must be in or out");
+    return bridgeQuote(b);
+  }],
+  // Payout: the user signs one NEAR Intents `transfer` of exactly the quoted amount to the quote's deposit
+  // account inside the verifier; we relay it with execute_intents and tell 1Click about the deposit.
+  ["POST", /^\/api\/bridge\/send$/, async (req) => {
+    const { signed, account: me, depositAddress } = await jbody(req); await who(req, me);
+    const rec = (db.bridges || []).find((x) => x.depositAddress === depositAddress && x.account === me && x.direction === "out");
+    if (!rec) throw new HttpError(404, "Unknown payout quote.");
+    const m = msgOf(signed), i = m.intents || [];
+    if (m.signer_id !== me || i.length !== 1 || i[0].intent !== "transfer" || i[0].receiver_id !== depositAddress || Object.keys(i[0].tokens || {}).join() !== rec.asset || i[0].tokens[rec.asset] !== rec.amountIn) throw new HttpError(400, "Sign exactly one transfer of the quoted amount to the quote's deposit account.");
+    const tx = await execute([signed]);
+    rec.tx = tx; save();
+    const st = await oneclick("/deposit/submit", { txHash: tx, depositAddress, nearSenderAccount: me }).catch((e) => ({ error: e.message }));
+    log("bridge-out", rec.chain, tx);
+    return { tx, status: st.status || "KNOWN_DEPOSIT_TX" };
+  }],
+  ["POST", /^\/api\/bridge\/submit$/, async (req) => {
+    const { txHash, depositAddress, account: me } = await jbody(req); await who(req, me);
+    if (!/^0x[0-9a-fA-F]{64}$/.test(txHash || "")) throw new HttpError(400, "txHash must be an EVM tx hash");
+    return oneclick("/deposit/submit", { txHash, depositAddress });
+  }],
+  ["GET", /^\/api\/bridge\/status$/, async (req, _, url) => {
+    const d = url.searchParams.get("depositAddress") || "";
+    if (!/^[\w.\-]{2,66}$/.test(d)) throw new HttpError(400, "depositAddress required");
+    return oneclick(`/status?depositAddress=${encodeURIComponent(d)}`);
+  }],
+  ["GET", /^\/api\/bridge\/mine$/, async (req, _, url) => {
+    const me = url.searchParams.get("account"); await who(req, me);
+    return (db.bridges || []).filter((x) => x.account === me).slice(-20).reverse();
   }],
   ["POST", /^\/api\/fund$/, async (req) => {
     if (limited(req, 5)) throw new HttpError(429, "Slow down.");
