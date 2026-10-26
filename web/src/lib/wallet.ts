@@ -29,10 +29,19 @@ async function selector() {
   })();
   return sel;
 }
-async function activeWallet() { const s = await selector(); return s.wallet(); }
+// Demo/test builds only (VITE_DEMO_WALLET=1, never set in production): a scripted key wallet injected by the
+// test harness as window.__demoNear, so recordings and e2e runs can sign NEP-413 messages headlessly.
+const demo = (): any => (import.meta.env.VITE_DEMO_WALLET === "1" ? (window as any).__demoNear : null);
+async function activeWallet(): Promise<any> {
+  const d = demo();
+  if (d) return { signMessage: async (p: any) => d.signMessage({ message: p.message, recipient: p.recipient, nonce: Array.from(p.nonce) }), signAndSendTransaction: async () => { throw new Error("The demo wallet does not send NEAR transactions."); } };
+  const s = await selector(); return s.wallet();
+}
 
 /** Open the Wallet Selector modal; resolves with the connected account (or rejects if closed). */
 export async function connectWallet(): Promise<Sess> {
+  const d = demo();
+  if (d) { saveSess({ account: await d.account(), walletId: "demo-key" }); await walletApiLogin(); return walletSession()!; }
   const s = await selector();
   if (!modal) { const { setupModal } = await import("@near-wallet-selector/modal-ui"); await import("@near-wallet-selector/modal-ui/styles.css"); modal = setupModal(s, { contractId: VERIFIER, description: "Connect a NEAR testnet wallet to trade on Private OTC." }); }
   const acct = await new Promise<{ accountId: string; walletId: string }>((res, rej) => {

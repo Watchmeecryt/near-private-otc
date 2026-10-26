@@ -32,7 +32,7 @@ export default function Landing() {
         <div className="nav-cta"><ThemeToggle className="icon-btn" /><Link to="/app" className="btn btn-dark btn-sm">Open the board</Link></div>
       </div></header>
       <section className="hero"><div className="wrap hero-copy">
-        <div className="chip fade-up"><Cpu size={14} /> Sealed in a TEE · settled with NEAR Intents</div>
+        <div className="chip fade-up"><Handshake size={14} weight="bold" /> Sealed in a TEE · settled with NEAR Intents</div>
         <h1 style={{ marginTop: 22 }}>Find your counterparty.<br />Keep your price.</h1>
         <p className="hero-sub fade-up">NEAR Private OTC is an open deal board where anyone can see a deal exists, but only the people you negotiate with see its size and price. When you both sign, one NEAR Intents call swaps both sides.</p>
         <div className="hero-ctas fade-up"><Link to="/app" className="btn btn-white btn-lg"><Storefront size={18} /> Browse deals <ArrowRight size={18} weight="bold" /></Link><Link to="/app/new" className="btn btn-glass btn-lg">Post a deal</Link></div>
