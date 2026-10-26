@@ -510,3 +510,17 @@ dd .heir-chips { justify-content: flex-start; }
 .w-bridge .bridge-q{margin-top:10px;padding:10px;border-radius:10px;background:var(--surface-2,rgba(127,127,127,.08));word-break:break-all}
 .d2-xchain{margin-top:12px;display:grid;gap:6px}
 .d2-xchain .w-bridge{padding:12px}
+/* Wallet: compact summary + tabs */
+.w-sum { padding: 14px 16px; max-width: 980px; }
+.w-sum-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; } .w-sum-head .h3 { margin: 0; font-size: 15px; }
+.sum-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 14px; }
+.sum-tok { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--cream); min-width: 0; }
+.sum-sym { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.sum-amt { font-size: 13px; font-weight: 600; }
+.w-tabs { display: flex; margin: 16px 0 12px; max-width: 980px; overflow-x: auto; flex-wrap: nowrap; } .w-tabs button { flex: 1 0 auto; white-space: nowrap; }
+.w-pane { max-width: 980px; } .w-pane > section, .w-pane #bridge > section { width: 100%; }
+.w-move { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.w-pane .faucet-row { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.w-pane .faucet-tile { padding: 10px 12px; }
+.linkish { border: 0; background: none; padding: 0; color: var(--brand); text-decoration: underline; cursor: pointer; font: inherit; }
+@media (max-width: 560px) { .w-move { grid-template-columns: 1fr; } .sum-grid { grid-template-columns: 1fr 1fr; } .w-pane .faucet-row { grid-template-columns: 1fr 1fr; } }

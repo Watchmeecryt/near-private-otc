@@ -31,8 +31,7 @@ export default function WalletPage() {
   const [acts, setActs] = useState<Act[]>([]);
   const load = () => account && balances(account).then(setBal).catch(() => {});
   useEffect(() => { if (!account) return; setActs(readActs(account)); load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [account]);
-  useEffect(() => { if (new URLSearchParams(location.search).get("bridge")) setTimeout(() => document.getElementById("bridge")?.scrollIntoView({ behavior: "smooth" }), 300);
-    if (location.hash === "#faucet") setTimeout(() => document.getElementById("faucet")?.scrollIntoView({ behavior: "smooth" }), 200); }, []);
+  const [tab, setTab] = useState<"faucet" | "move" | "bridge" | "activity">(() => new URLSearchParams(location.search).get("bridge") ? "bridge" : location.hash === "#activity" ? "activity" : location.hash === "#move" ? "move" : "faucet");
   if (!account) return <><Top title="Wallet" /><NeedSignIn what="Sign in to see your balances, claim test tokens and withdraw to your NEAR account." /></>;
   const record = (a: Act) => { const n = [a, ...readActs(account)].slice(0, 20); localStorage.setItem(actKey(account), JSON.stringify(n)); setActs(n); };
   const run = async (kind: string, detail: string, f: () => Promise<string>) => {
@@ -70,31 +69,34 @@ export default function WalletPage() {
   return (
     <>
       <Top title="Wallet" sub="Your test-token balances inside the NEAR Intents verifier. Deals settle straight from here; claim from the faucet, deposit, or withdraw to your own account." />
-      <div className="wallet-grid">
-        <section className="card card-pad w-bal">
-          <h3 className="h3"><Coins size={18} weight="duotone" /> Balances</h3>
-          <div className="tok-grid">{TOKENS.map((t: any) => (
-            <div key={t.id} className="tok"><span className="tok-sym">{t.symbol}</span><b className="mono tok-amt">{bal ? fromUnits(bal[t.id], t.decimals, 4) : "…"}</b><span className="tiny muted mono">{t.contract}</span></div>
-          ))}</div>
-          <p className="tiny muted w-explain">Balances shown are held in the NEAR Intents verifier. Deposit to trade, withdraw to move them back to your wallet. Deposits and withdrawals are public on chain; deal terms stay sealed until settlement.</p>
-        </section>
-        <section className="card card-pad w-faucet" id="faucet">
+      <section className="card w-sum">
+        <div className="w-sum-head"><h3 className="h3"><Coins size={16} weight="duotone" /> Balances</h3><span className="tiny muted">Held in the NEAR Intents verifier</span></div>
+        <div className="sum-grid">{TOKENS.map((t: any) => (
+          <div key={t.id} className="sum-tok" title={t.contract}><TokenIcon t={t.symbol} size={20} /><span className="sum-sym">{tokenLabel(t)}</span><b className="mono sum-amt">{bal ? fromUnits(bal[t.id], t.decimals, 4) : "…"}</b></div>
+        ))}</div>
+      </section>
+      <div className="seg w-tabs" role="tablist">{([["faucet", "Faucet"], ["move", "Deposit & Withdraw"], ["bridge", "Cross-chain"], ["activity", "Activity"]] as const).map(([k, l]) => (
+        <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>))}</div>
+      <div className="w-pane">
+        {tab === "faucet" && <section className="card card-pad w-faucet" id="faucet">
           <h3 className="h3"><Drop size={18} weight="duotone" /> Faucet</h3>
           <p className="small muted">Free Tidepool test tokens (no value), deposited straight into your verifier balance. One claim gives all six; Tidepool allows one claim per account per hour.</p>
-          <div className="faucet-row">{TOKENS.map((t: any) => (
+          <div className="faucet-row">{TOKENS.filter((t: any) => t.faucet).map((t: any) => (
             <div key={t.id} className={`faucet-tile ${coolLeft ? "done" : ""}`}>
-              <span className="tok-ic"><TokenIcon t={t.symbol} size={40} /></span>
+              <span className="tok-ic"><TokenIcon t={t.symbol} size={28} /></span>
               <div className="ft-txt"><b>+{t.faucet}</b><span>{t.symbol}</span></div>
             </div>))}</div>
           <button className="btn btn-dark btn-sm" style={{ marginTop: 12 }} disabled={!!busy || coolLeft > 0} onClick={faucet}>{busy === "Faucet" ? "Claiming…" : coolLeft ? `Next claim in ${Math.ceil(coolLeft / 60000)} min` : "Claim all six"}</button>
           <p className="tiny muted">Faucet by <a href="https://www.usetidepool.tech/docs/guides/faucet" target="_blank" rel="noreferrer">Tidepool</a>.</p>
-        </section>
+        </section>}
+        {tab === "move" && <div className="w-move">
         {kind === "wallet" && (
           <section className="card card-pad w-dep">
             <h3 className="h3"><Coins size={18} weight="duotone" /> Deposit from your wallet</h3>
             <p className="small muted">Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into Private OTC so deals can settle. You pay a little gas.</p>
             <div className="field-row"><label className="field"><span>Amount</span><input className="input mono" inputMode="decimal" value={depAmt} onChange={(e) => setDepAmt(e.target.value.replace(",", "."))} placeholder="0.5" /></label>
-              <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.map((x: any) => ({ value: x.id, label: tokenLabel(x) }))} /></div></div>
+              <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.filter((x: any) => !x.chain).map((x: any) => ({ value: x.id, label: tokenLabel(x) }))} /></div></div>
+            <p className="tiny muted">Depositing from Base, Arbitrum or Ethereum Sepolia? Use the <button type="button" className="linkish" onClick={() => setTab("bridge")}>Cross-chain tab</button>.</p>
             <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(depAmt) > 0)} onClick={deposit}>{busy === "Deposit" ? "Waiting for wallet…" : "Deposit"}</button>
           </section>
         )}
@@ -109,13 +111,14 @@ export default function WalletPage() {
           <SignPanel kind={`ft_withdraw intent (NEP-413) → ${wt.contract}, receiver ${account}`} gas="Relayer pays. The first withdrawal of a token asks for a 0.00125 NEAR storage_deposit from your account." />
           <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(wdAmt) > 0)} onClick={withdraw}>{busy === "Withdraw" ? "Withdrawing…" : "Sign & withdraw"}</button>
         </section>
-        <div id="bridge"><Bridge account={account} balances={bal} initial={initialBridge()} onDone={load} /></div>
-        <section className="card card-pad w-act">
+        </div>}
+        {tab === "bridge" && <div id="bridge"><Bridge account={account} balances={bal} initial={initialBridge()} onDone={load} /></div>}
+        {tab === "activity" && <section className="card card-pad w-act">
           <h3 className="h3"><ClockCounterClockwise size={18} /> Activity</h3>
           {acts.length === 0 ? <p className="small muted">No wallet activity on this device yet.</p> : (
             <ul className="act-list">{acts.map((a) => <li key={a.tx}><b>{a.kind}</b><span>{a.detail}</span><span className="muted tiny">{new Date(a.at).toLocaleString()}</span><Tx hash={a.tx} /></li>)}</ul>
           )}
-        </section>
+        </section>}
       </div>
     </>
   );
