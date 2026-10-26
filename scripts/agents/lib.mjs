@@ -42,7 +42,7 @@ export class Agent {
     const intent = await this.nep(intentPayload({ signer: this.account, intents: [tokenDiff(terms.sell_token, terms.sell_amount, terms.buy_token, terms.buy_amount)], deadlineMs, nonce }));
     return { offer_ct: seal(ENCLAVE_PUBKEY, { v: 1, deal, from: this.account, to, terms, note: "", intent }), nonce: b64(nonce) };
   }
-  /** Maker: post a public deal selling `sell` for `buy` (["0.01","tETH"]) with auto-approve for anyone with funds. */
+  /** Maker: post a public deal selling `sell` for `buy` (["0.01","ETH"]) with auto-approve for anyone with funds. */
   async postDeal(sell, buy, ttlMs) {
     const S = tokenById(sell[1]), B = tokenById(buy[1]);
     const terms = { sell_token: S.id, sell_amount: toUnits(sell[0], S.decimals), buy_token: B.id, buy_amount: toUnits(buy[0], B.decimals) };

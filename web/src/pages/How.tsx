@@ -5,7 +5,7 @@ import { VERIFIER, TOKENS, KEEPER, EXPLORER } from "@shared/otc.mjs";
 
 const STEPS = [
   ["Post", "You pick pair, size and price. Your browser builds a token_diff intent, you sign it (NEP-413), and the whole offer is sealed to the enclave's public key. The enclave reads it once and publishes only pair, side and expiry (no size or price). Pick Public to list it on the board, or Private to share it only by link (you can make it public later, never the other way). Expiry can be 2 min (demo), 1h, 24h or 7d; the deadline sits inside your signed intent, so the NEAR Intents contract itself refuses it afterwards."],
-  ["Request", "Anyone can browse the board. To see the numbers, a signed-in taker (Google or a NEAR wallet) taps Request terms. You need at least $200 (CoinGecko price) of the token the maker wants, in Private OTC or your wallet. It is a spam filter, the same for every deal, so it reveals nothing about size. If you pass, the maker approves you (or has auto-approve on), and only then does the enclave re-seal the exact terms to a one-time key in your browser."],
+  ["Request", "Anyone can browse the board. To see the numbers, a signed-in taker (Google or a NEAR wallet) taps Request terms. You need at least $50 (CoinGecko price) of the token the maker wants, in Private OTC or your wallet. It is a spam filter, the same for every deal, so it reveals nothing about size. If you pass, the maker approves you (or has auto-approve on), and only then does the enclave re-seal the exact terms to a one-time key in your browser."],
   ["Negotiate", "Accept, Counter or Decline. Each counter is a new signed intent sealed to the enclave and readable only by the two parties."],
   ["Settle", "On Accept the enclave checks both signed intents are exact mirror images and hands them to the relayer, which dry-runs simulate_intents and calls execute_intents. Both legs move in one transaction, or nothing moves."],
 ];
@@ -21,7 +21,7 @@ export default function How() {
           <li>At settlement both signed intents become public on NEAR, like any settled trade.</li>
           <li>One signed listing fills once (no partial fills). Post several smaller deals as tranches.</li>
           <li>Deposits and withdrawals are public on chain; open deal terms stay sealed.</li>
-          <li>Testnet only. The verifier is our own unmodified copy of NEAR Intents defuse v0.4.2; its super-admin is otcdesk.testnet (the operator), so on testnet the operator could in theory upgrade it or move balances. Mainnet settlement would use the official intents.near.</li></ul></div>
+          <li>Testnet only. The verifier is Tidepool's unmodified NEAR Intents defuse v0.4.2 sandbox (verifier.tidepool-sandbox.testnet), operated by Tidepool, so on testnet its operator could in theory upgrade it or move balances. Mainnet settlement would use the official intents.near.</li></ul></div>
         <h3 className="h3" style={{ marginTop: 8 }}>NEAR features used</h3>
         {FEATURES.map(([t, d, l]) => <div key={t} className="card card-pad feat"><b>{t}</b><p className="small muted">{d}</p><a className="link tiny" href={l} target="_blank" rel="noreferrer">Docs ↗</a></div>)}
         <div className="card card-pad"><h3 className="h3">Contracts (testnet)</h3><ul className="small mono bullets">

@@ -126,9 +126,9 @@ export default function Deal() {
   const gate = !me ? <NeedSignIn what="Sign in to request the exact terms." />
     : !canSign ? <p className="wallet-note">This wallet can't sign messages here. Connect Meteor, HOT, Intear, HERE or MyNearWallet, or sign in with Google.</p>
     : (isMaker || myReq === "approved") ? <div className="gate"><Eye size={26} weight="duotone" /><p>{isMaker ? "Your terms are sealed in the enclave." : "The maker approved you."} Open them in this browser; nobody else can read them.</p><button className="btn btn-dark" disabled={!!busy} onClick={() => doReveal()}>{busy || (isMaker ? "Open my deal" : "Open the terms")}</button></div>
-    : myReq === "pending" ? <div className="gate"><UsersThree size={26} weight="duotone" /><p>Request sent. You passed the $200 check; waiting for the maker to approve you.</p></div>
+    : myReq === "pending" ? <div className="gate"><UsersThree size={26} weight="duotone" /><p>Request sent. You passed the $50 check; waiting for the maker to approve you.</p></div>
     : !live ? <div className="gate"><Eye size={26} weight="duotone" /><p>This deal is {String(d.status).toLowerCase()}. It no longer takes requests.</p></div>
-    : <div className="gate"><Eye size={26} weight="duotone" /><p>{myReq === "declined" ? "The maker declined your last request. You can ask again." : <>Request access to see the exact terms. You need at least <b>$200 in {mGet}</b> (Private OTC or wallet) — a spam filter, the same for every deal. {d.auto_approve ? "This maker auto-approves." : "Then the maker approves you."}</>}</p><button className="btn btn-dark" disabled={!!busy || !live} onClick={doRequest}>{busy || "Request terms"}</button></div>;
+    : <div className="gate"><Eye size={26} weight="duotone" /><p>{myReq === "declined" ? "The maker declined your last request. You can ask again." : <>Request access to see the exact terms. You need at least <b>$50 in {mGet}</b> (Private OTC or wallet) — a spam filter, the same for every deal. {d.auto_approve ? "This maker auto-approves." : "Then the maker approves you."}</>}</p><button className="btn btn-dark" disabled={!!busy || !live} onClick={doRequest}>{busy || "Request terms"}</button></div>;
 
   return (
     <div className="deal2">
@@ -192,9 +192,9 @@ export default function Deal() {
 
         {tab === "req" && isMaker && (
           <div className="d2-body">
-            <label className="auto-row"><input type="checkbox" checked={!!d.auto_approve} disabled={!!busy || !live} onChange={(e) => setAuto(e.target.checked)} /><span><b>Auto-approve anyone with $200+</b><br /><span className="tiny muted">Every requester already holds at least $200 of {mGet} (spam filter, not a fill guarantee).</span></span></label>
+            <label className="auto-row"><input type="checkbox" checked={!!d.auto_approve} disabled={!!busy || !live} onChange={(e) => setAuto(e.target.checked)} /><span><b>Auto-approve anyone with $50+</b><br /><span className="tiny muted">Every requester already holds at least $50 of {mGet} (spam filter, not a fill guarantee).</span></span></label>
             {my?.request_list?.length ? <ul className="req-list">{[...my.request_list].reverse().map((r) => (
-              <li key={r.account}><span className="req-who"><Persona name={r.account} size={26} /><span><span className="mono small">{short(r.account, 10, 4)}</span><br /><span className="tiny muted">$200+ ✓ · {ago(now - r.at)}</span></span></span>
+              <li key={r.account}><span className="req-who"><Persona name={r.account} size={26} /><span><span className="mono small">{short(r.account, 10, 4)}</span><br /><span className="tiny muted">$50+ ✓ · {ago(now - r.at)}</span></span></span>
                 {r.status === "pending" && live ? <span className="row-gap"><button className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => decide(r.account, "decline")}>Decline</button><button className="btn btn-dark btn-sm" disabled={!!busy} onClick={() => decide(r.account, "approve")}>Approve</button></span> : <span className={`chip ${r.status === "approved" ? "chip-green" : "chip-muted"}`}>{r.status}{r.auto ? " (auto)" : ""}</span>}</li>))}</ul>
               : <p className="muted small">No requests yet. Share the link or wait for traders on the board.</p>}
           </div>

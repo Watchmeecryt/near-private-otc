@@ -15,10 +15,10 @@ const SUB = process.argv.includes("--subaccounts"), NEG = process.argv.includes(
 // Negotiation policy (amounts of the BUY token for the whole SELL amount):
 //   taker opens at COUNTER; maker accepts anything >= FLOOR, otherwise counters back halfway;
 //   taker accepts the maker's reply if it is <= LIMIT, otherwise declines.
-const LIST = Number((process.env.BUY || "20 tUSDC").split(" ")[0]);
+const LIST = Number((process.env.BUY || "20 USDC").split(" ")[0]);
 const COUNTER = Number(process.env.COUNTER || LIST * 0.9), FLOOR = Number(process.env.FLOOR || LIST * 0.95), LIMIT = Number(process.env.LIMIT || LIST * 0.97);
 const N = NEG ? 1 : Math.max(1, Number(process.env.TAKERS || 1));
-const SELL = (process.env.SELL || "0.01 tETH").split(" "), BUY = (process.env.BUY || "20 tUSDC").split(" ");
+const SELL = (process.env.SELL || "0.005 ETH").split(" "), BUY = (process.env.BUY || "20 USDC").split(" ");
 const sys = (m) => say("system", C.dim, m);
 const cols = [C.y, C.m, C.g, C.r];
 
@@ -64,7 +64,7 @@ try {
     const board = await t.http("GET", "/api/deals");
     const seen = board.find((x) => x.id === d.id);
     t.log(`board shows ${board.length} deals; found ${seen.id}: ${seen.pair} ${seen.side}, expires ${seen.deadline.slice(11, 16)} UTC`);
-    const q = await t.requestTerms(d.id); t.log(`requested terms -> ${q.request.status} (held $200+ of ${BUY[1]}, maker auto-approves)`);
+    const q = await t.requestTerms(d.id); t.log(`requested terms -> ${q.request.status} (held $50+ of ${BUY[1]}, maker auto-approves)`);
     const { offers, tx: rtx } = await t.readTerms(d.id);
     const open = offers.find((o) => o.to === "*");
     t.log(`enclave re-sealed the terms to my one-time key: ${C.b}${human(open.terms)}${C.x}  ${C.dim}${tx(rtx)}${C.x}`);

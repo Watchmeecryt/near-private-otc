@@ -28,12 +28,15 @@ use sha2::{Digest, Sha256};
 use std::io::{self, Read, Write};
 
 const KEY_INFO: &[u8] = b"private-otc:ecies:v1";
-pub const VERIFIER: &str = "otcdesk-intents.testnet";
+pub const VERIFIER: &str = "verifier.tidepool-sandbox.testnet";
 /// token id -> (symbol, decimals)
 const TOKENS: &[(&str, &str, u32)] = &[
-    ("nep141:otcdesk-usdc.testnet", "tUSDC", 6),
-    ("nep141:wrap.testnet", "wNEAR", 24),
-    ("nep141:otcdesk-eth.testnet", "tETH", 18),
+    ("nep141:usdc.tidepool-sandbox.testnet", "USDC", 6),
+    ("nep141:usdt.tidepool-sandbox.testnet", "USDT", 6),
+    ("nep141:wnear.tidepool-sandbox.testnet", "wNEAR", 24),
+    ("nep141:eth.tidepool-sandbox.testnet", "ETH", 18),
+    ("nep141:wbtc.tidepool-sandbox.testnet", "wBTC", 8),
+    ("nep141:xaut.tidepool-sandbox.testnet", "XAUT", 6),
 ];
 
 #[derive(Deserialize)]
@@ -136,7 +139,7 @@ fn offer(hexct: &str) -> Result<(String, Offer, String), String> {
 fn coarse(o: &Offer, deadline: &str) -> Result<Value, String> {
     let t = &o.terms;
     let rank = |id: &str| TOKENS.iter().position(|x| x.0 == id).unwrap_or(9);
-    // quote = the lower-ranked token (tUSDC before wNEAR before tETH)
+    // quote = the lower-ranked token (USDC, USDT, wNEAR, ETH, wBTC, XAUT)
     let (quote, base, side) = if rank(&t.sell_token) < rank(&t.buy_token) { (&t.sell_token, &t.buy_token, "buy") } else { (&t.buy_token, &t.sell_token, "sell") };
     let (qs, _) = token(quote)?; let (bs, _) = token(base)?;
     Ok(json!({ "deal": o.deal, "from": o.from, "to": o.to, "pair": format!("{bs}/{qs}"), "side": side, "deadline": deadline }))

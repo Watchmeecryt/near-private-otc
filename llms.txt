@@ -1,11 +1,11 @@
 # NEAR Private OTC
 
-> Private OTC deal board on NEAR testnet. The board is open to everyone and shows pair, side, expiry, status, request and counter-offer counts only. To see terms a taker requests access: they must hold at least $200 (CoinGecko) of the token the maker wants, wallet + verifier; a fixed spam filter independent of deal size, not a fill guarantee, then the maker approves (or auto-approves anyone with funds). Sign in with email/Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet; Ledger without message signing). Deals can be public (listed on the board) or private (link only, never listed; maker can switch private to public, not back). Expiry options: 2 min (demo), 1h, 24h, 7d, enforced by the verifier via the signed intent deadline. Exact terms and counter-offers are sealed to an OutLayer TEE enclave and revealed only to approved requesters. Matching NEP-413 signed token_diff intents settle atomically via execute_intents on a NEAR Intents verifier (otcdesk-intents.testnet).
+> Private OTC deal board on NEAR testnet. The board is open to everyone and shows pair, side, expiry, status, request and counter-offer counts only. To see terms a taker requests access: they must hold at least $50 (CoinGecko) of the token the maker wants, wallet + verifier; a fixed spam filter independent of deal size, not a fill guarantee, then the maker approves (or auto-approves anyone with funds). Sign in with email/Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet; Ledger without message signing). Deals can be public (listed on the board) or private (link only, never listed; maker can switch private to public, not back). Expiry options: 2 min (demo), 1h, 24h, 7d, enforced by the verifier via the signed intent deadline. Exact terms and counter-offers are sealed to an OutLayer TEE enclave and revealed only to approved requesters. Matching NEP-413 signed token_diff intents settle atomically via execute_intents on a NEAR Intents verifier (verifier.tidepool-sandbox.testnet).
 
 ## Key facts
-- Verifier: otcdesk-intents.testnet (near/intents defuse v0.4.2 release wasm)
+- Verifier: verifier.tidepool-sandbox.testnet (near/intents defuse v0.4.2 release wasm)
 - Relayer: otcdesk.testnet
-- Tokens: otcdesk-usdc.testnet (tUSDC), otcdesk-eth.testnet (tETH), wrap.testnet (wNEAR)
+- Tokens (Tidepool test tokens, no value): USDC, USDT, wNEAR, ETH, wBTC, XAUT = <usdc|usdt|wnear|eth|wbtc|xaut>.tidepool-sandbox.testnet
 - Enclave: OutLayer project otcdesk-enclave.testnet/private-otc, pubkey 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8
 - Sign-in: Privy (Google) → NEAR implicit account, or a NEAR wallet via Wallet Selector; the board needs no sign-in
 - Built at NEAR HACKATHON 2026; track: defi (privacy is a supporting feature: terms sealed in OutLayer TDX)
@@ -14,9 +14,9 @@
 - [Board](/app): open deals (coarse info)
 - [New deal](/app/new)
 - [My deals](/app/mine)
-- [Wallet](/app/wallet): verifier balances, faucet (tUSDC, tETH, wNEAR), deposit from your wallet (NEAR-wallet sign-ins), withdraw to your own NEAR account (everyone, signed ft_withdraw intent), activity
+- [Wallet](/app/wallet): verifier balances, faucet (Tidepool: USDC, USDT, wNEAR, ETH, wBTC, XAUT), deposit from your wallet (NEAR-wallet sign-ins), withdraw to your own NEAR account (everyone, signed ft_withdraw intent), activity
 - Balances are held in the NEAR Intents verifier. Deposits and withdrawals are public on chain, and settled trades are visible on chain; open deal terms stay sealed.
-- Testnet trust note: the verifier otcdesk-intents.testnet is our own unmodified copy of NEAR Intents defuse v0.4.2, and its super-admin is otcdesk.testnet (the operator). So on testnet the operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official intents.near.
+- Testnet trust note: the verifier `verifier.tidepool-sandbox.testnet` is Tidepool's unmodified NEAR Intents defuse v0.4.2 sandbox, operated by Tidepool. So on testnet Tidepool's operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official intents.near.
 - [How it works](/app/how): flow, privacy, every NEAR feature used
 
 ## API
@@ -25,4 +25,4 @@
 - GET /api/deals — public board
 - GET /api/deals/{id}
 
-Faucet: 1000 tUSDC, 50 wNEAR, 0.5 tETH per claim, 3 claims per token per day, credited straight into your verifier balance. One claim of any token clears the $200 request threshold at current prices.
+Faucet (Tidepool's, intents mode): one claim gives 100 USDC, 100 USDT, 40 wNEAR, 0.03 ETH, 0.001 wBTC and 0.03 XAUT, credited straight into your verifier balance; one claim per account per hour. One claim of any token clears the $50 request threshold at current prices.

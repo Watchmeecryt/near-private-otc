@@ -8,7 +8,7 @@ import { balances, withdrawPayload } from "../lib/deal";
 import { sendTx, viewCall, ensureFunded, balanceOf } from "../lib/privy";
 import { TOKENS, fromUnits, toUnits, VERIFIER } from "@shared/otc.mjs";
 import { walletTx } from "../lib/wallet";
-import { Pick, SignPanel } from "../components/ui";
+import { Pick, SignPanel, TokenIcon } from "../components/ui";
 import { Tx } from "../components/ui";
 
 const STORAGE = "1250000000000000000000"; // 0.00125 NEAR
@@ -16,9 +16,7 @@ type Act = { kind: string; detail: string; tx: string; at: number };
 const actKey = (a: string) => `otc-activity-${a}`;
 const readActs = (a: string): Act[] => { try { return JSON.parse(localStorage.getItem(actKey(a)) || "[]"); } catch { return []; } };
 
-const claimKey = (a: string, s: string) => `otc-claim-${new Date().toISOString().slice(0, 10)}-${a}-${s}`;
-const claims = (a: string, s: string) => Number(localStorage.getItem(claimKey(a, s)) || 0);
-const bump = (a: string, s: string) => localStorage.setItem(claimKey(a, s), String(claims(a, s) + 1));
+const claimKey = (a: string, s: string) => `otc-tp-claim-${a}-${s}`;
 
 export default function WalletPage() {
   const { account, kind, walletId } = useApp();
@@ -37,12 +35,11 @@ export default function WalletPage() {
     try { setBusy(kind); const tx = await f(); record({ kind, detail, tx, at: Date.now() }); toast.show({ title: `${kind} done`, sub: tx ? `${detail} · https://testnet.nearblocks.io/txns/${tx}` : detail, tone: "success" }); setTimeout(load, 1500); }
     catch (e: any) { toast.show({ title: `${kind} failed`, sub: e.message, tone: "error" }); } finally { setBusy(""); }
   };
-  const faucet = async (t: any) => { setBusy("Faucet:" + t.symbol); try { const r = await api<any>("/api/faucet", { account, token: t.symbol }); bump(account, t.symbol); record({ kind: "Faucet", detail: `+${t.faucet} ${t.symbol}`, tx: r.tx, at: Date.now() }); toast.show({ title: `+${t.faucet} ${t.symbol}`, sub: "Added to your balance", tone: "success" }); setTimeout(load, 1500); } catch (e: any) { if (/limit/i.test(e.message)) { localStorage.setItem(claimKey(account, t.symbol), "3"); setActs([...acts]); } toast.show({ title: "Faucet failed", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
+  const faucet = async () => { setBusy("Faucet"); try { const r = await api<any>("/api/faucet", { account }); localStorage.setItem(claimKey(account, "all"), String(Date.now())); const detail = TOKENS.map((t: any) => `+${t.faucet} ${t.symbol}`).join(", "); record({ kind: "Faucet", detail, tx: r.tx, at: Date.now() }); toast.show({ title: "Test tokens claimed", sub: `${detail} · via Tidepool`, tone: "success" }); setTimeout(load, 1500); } catch (e: any) { if (/rate limited/i.test(e.message)) localStorage.setItem(claimKey(account, "all"), String(Date.now())); toast.show({ title: "Faucet", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
+  const lastClaim = Number(localStorage.getItem(claimKey(account, "all")) || 0); const coolLeft = Math.max(0, lastClaim + 3600_000 - Date.now());
   const deposit = () => { const t: any = TOKENS.find((x: any) => x.id === depTok); let units: string; try { units = toUnits(depAmt, t.decimals); } catch { return toast.show({ title: "Enter an amount", tone: "error" }); }
     return run("Deposit", `${depAmt} ${t.symbol} into Private OTC`, async () => {
-      const calls = t.contract === "wrap.testnet"
-        ? [{ method: "storage_deposit", args: { account_id: account, registration_only: true }, tgas: 10, deposit: "1250000000000000000000" }, { method: "near_deposit", args: {}, tgas: 10, deposit: units }, { method: "ft_transfer_call", args: { receiver_id: VERIFIER, amount: units, msg: account }, tgas: 100, deposit: "1" }]
-        : [{ method: "ft_transfer_call", args: { receiver_id: VERIFIER, amount: units, msg: account }, tgas: 100, deposit: "1" }];
+      const calls = [{ method: "ft_transfer_call", args: { receiver_id: VERIFIER, amount: units, msg: account }, tgas: 100, deposit: "1" }];
       return (await walletTx(t.contract, calls)) || "";
     }); };
   const wt: any = TOKENS.find((x: any) => x.id === wdTok)!;
@@ -79,21 +76,21 @@ export default function WalletPage() {
         </section>
         <section className="card card-pad w-faucet" id="faucet">
           <h3 className="h3"><Drop size={18} weight="duotone" /> Faucet</h3>
-          <p className="small muted">Free test tokens, deposited straight into your verifier balance. Limit: 3 claims per token per day.</p>
-          <div className="faucet-row">{TOKENS.map((t: any) => { const n = claims(account, t.symbol); const done = n >= 3; return (
-            <div key={t.id} className={`faucet-tile ${done ? "done" : ""}`}>
-              <span className="tok-ic">{t.symbol.replace(/^[tw]/, "").slice(0, 1)}</span>
+          <p className="small muted">Free Tidepool test tokens (no value), deposited straight into your verifier balance. One claim gives all six; Tidepool allows one claim per account per hour.</p>
+          <div className="faucet-row">{TOKENS.map((t: any) => (
+            <div key={t.id} className={`faucet-tile ${coolLeft ? "done" : ""}`}>
+              <span className="tok-ic"><TokenIcon t={t.symbol} size={40} /></span>
               <div className="ft-txt"><b>+{t.faucet}</b><span>{t.symbol}</span></div>
-              <span className="ft-lim">{n}/3 today</span>
-              <button className="btn btn-dark btn-sm ft-btn" disabled={!!busy || done} onClick={() => faucet(t)}>{busy === "Faucet:" + t.symbol ? "Claiming…" : done ? "Limit reached" : "Claim"}</button>
-            </div>); })}</div>
+            </div>))}</div>
+          <button className="btn btn-dark btn-sm" style={{ marginTop: 12 }} disabled={!!busy || coolLeft > 0} onClick={faucet}>{busy === "Faucet" ? "Claiming…" : coolLeft ? `Next claim in ${Math.ceil(coolLeft / 60000)} min` : "Claim all six"}</button>
+          <p className="tiny muted">Faucet by <a href="https://www.usetidepool.tech/docs/guides/faucet" target="_blank" rel="noreferrer">Tidepool</a>.</p>
         </section>
         {kind === "wallet" && (
           <section className="card card-pad w-dep">
             <h3 className="h3"><Coins size={18} weight="duotone" /> Deposit from your wallet</h3>
-            <p className="small muted">Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into Private OTC so deals can settle. NEAR is wrapped to wNEAR in the same transaction. You pay a little gas.</p>
+            <p className="small muted">Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into Private OTC so deals can settle. You pay a little gas.</p>
             <div className="field-row"><label className="field"><span>Amount</span><input className="input mono" inputMode="decimal" value={depAmt} onChange={(e) => setDepAmt(e.target.value.replace(",", "."))} placeholder="0.5" /></label>
-              <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.map((x: any) => ({ value: x.id, label: x.symbol === "wNEAR" ? "NEAR → wNEAR" : x.symbol }))} /></div></div>
+              <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.map((x: any) => ({ value: x.id, label: x.symbol }))} /></div></div>
             <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(depAmt) > 0)} onClick={deposit}>{busy === "Deposit" ? "Waiting for wallet…" : "Deposit"}</button>
           </section>
         )}
@@ -104,7 +101,7 @@ export default function WalletPage() {
             <div className="field"><span>Token</span><Pick label="Withdraw token" value={wdTok} onChange={(v: string) => { setWdTok(v); setWdAmt(""); }} options={TOKENS.map((x: any) => ({ value: x.id, label: x.symbol }))} /></div>
             <label className="field"><span>Amount <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 6, padding: "0 8px", minHeight: 0, fontSize: 11 }} onClick={() => setWdAmt(wdMax)} disabled={!bal}>Max</button></span><input className="input mono" inputMode="decimal" value={wdAmt} onChange={(e) => setWdAmt(e.target.value.replace(",", "."))} placeholder="0.0" /></label>
           </div>
-          <p className="tiny muted">Available: <span className="mono">{bal ? fromUnits(bal[wt.id] || "0", wt.decimals, 6) : "…"} {wt.symbol}</span>{wt.contract === "wrap.testnet" ? " · arrives as wNEAR; unwrap in your wallet if you want native NEAR." : ""}</p>
+          <p className="tiny muted">Available: <span className="mono">{bal ? fromUnits(bal[wt.id] || "0", wt.decimals, 6) : "…"} {wt.symbol}</span></p>
           <SignPanel kind={`ft_withdraw intent (NEP-413) → ${wt.contract}, receiver ${account}`} gas="Relayer pays. The first withdrawal of a token asks for a 0.00125 NEAR storage_deposit from your account." />
           <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(wdAmt) > 0)} onClick={withdraw}>{busy === "Withdraw" ? "Withdrawing…" : "Sign & withdraw"}</button>
         </section>

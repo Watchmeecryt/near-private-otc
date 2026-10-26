@@ -1,11 +1,14 @@
 {
   "network": "testnet",
   "keeper": "otcdesk.testnet",
-  "verifier": "otcdesk-intents.testnet",
-  "wnear": "wrap.testnet",
+  "verifier": "verifier.tidepool-sandbox.testnet",
   "tokens": [
-    "otcdesk-usdc.testnet",
-    "otcdesk-eth.testnet"
+    "usdc.tidepool-sandbox.testnet",
+    "usdt.tidepool-sandbox.testnet",
+    "wnear.tidepool-sandbox.testnet",
+    "eth.tidepool-sandbox.testnet",
+    "wbtc.tidepool-sandbox.testnet",
+    "xaut.tidepool-sandbox.testnet"
   ],
   "txs": {
     "fund_verifier": "9Lph3NmHZbo7uoXs1Vs8oqFPVJCUF5nub6EoQyeVyKBB",
@@ -27,10 +30,12 @@
     "enclave_request_verify": "ALbW42GGygPt5bEWFSGiHR5ZDnz8EX7gpjHsMZBLBLEy"
   },
   "outlayer_project": "otcdesk-enclave.testnet/private-otc",
-  "enclave_wasm_sha256": "1b9862020a7a0e13b809880d6022e6e636712731b325f424a60d108345da1760",
-  "enclave_wasm_url": "https://test.fastfs.io/otcdesk-enclave.testnet/outlayer.testnet/1b9862020a7a0e13b809880d6022e6e636712731b325f424a60d108345da1760.wasm",
+  "enclave_wasm_sha256": "a1ad0d61d5981b0e5a6f3afd805746e22f4ae0805aa14087360448575615d760",
+  "enclave_wasm_url": "https://near-private-otc-productio999n.up.railway.app/enclave/a1ad0d61d5981b0e5a6f3afd805746e22f4ae0805aa14087360448575615d760.wasm",
   "enclave_pubkey": "03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8",
   "verifier_wasm": "near/intents release defuse/v0.4.2 defuse.wasm sha256 f67f9559b3b512c52dfa11723a28b9119bcf773ac01780370d6409e5f1fb20e5",
   "token_wasm": "near/intents releases/fungible-token.wasm sha256 12c5f9bd9136b4396823478281a61368b4c74cdaf35ab5743b302c3aac55a354",
-  "app_url": "https://near-private-otc-productio999n.up.railway.app"
+  "app_url": "https://near-private-otc-productio999n.up.railway.app",
+  "tidepool": "https://www.usetidepool.tech",
+  "legacy_otcdesk_verifier": "otcdesk-intents.testnet"
 }

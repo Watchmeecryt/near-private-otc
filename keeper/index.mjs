@@ -9,7 +9,7 @@ import { account, call, view, lastValue, RPC } from "./chain.mjs";
 import { enclave } from "./enclave.mjs";
 import { fund, privyNearAccounts } from "./fund.mjs";
 import { walletLogin } from "./walletauth.mjs";
-import { VERIFIER, TOKENS, tokenById, toUnits, base58, randomBytes } from "../shared/otc.mjs";
+import { VERIFIER, TIDEPOOL, TOKENS, tokenById, toUnits, base58, randomBytes } from "../shared/otc.mjs";
 
 const RPC_UPSTREAMS = (process.env.RPC_UPSTREAMS || "https://test.rpc.fastnear.com,https://neart.lava.build,https://rpc.testnet.pagoda.co").split(",");
 const PORT = Number(process.env.PORT || 8790);
@@ -97,28 +97,28 @@ async function execute(signed) {
 const msgOf = (p) => JSON.parse(p.payload.message);
 
 // ---- faucet ----
-const near = (n) => BigInt(Math.round(n * 1e6)) * 10n ** 18n;
-async function faucet(accountId, symbol) {
-  const t = tokenById(symbol); if (!t) throw new HttpError(400, "Unknown token");
-  const amount = toUnits(t.faucet, t.decimals);
-  if (t.contract === "wrap.testnet") {
-    const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_account", finality: "final", account_id: KEEPER_ID } }) }).then((x) => x.json());
-    if (BigInt(r.result.amount) < BigInt(amount) + 5n * 10n ** 24n) throw new HttpError(503, "The wNEAR faucet is empty right now. Try tUSDC or tETH, or come back later.");
-  }
-  if (t.contract === "wrap.testnet") await call(keeper, "wrap.testnet", "near_deposit", {}, { tgas: 30, deposit: amount });
-  const o = await call(keeper, t.contract, "ft_transfer_call", { receiver_id: VERIFIER, amount, msg: accountId }, { tgas: 100, deposit: "1" });
-  lastValue(o); return { tx: o.transaction.hash, amount, token: t.id };
+// Tidepool's faucet (intents mode): credits all six Tidepool test tokens straight into the account's
+// balance inside the Tidepool verifier. Tidepool limits it to one drip per account per hour.
+async function faucet(accountId, clientIp) {
+  const r = await fetch(`${TIDEPOOL}/v0/faucet`, { method: "POST", headers: { "content-type": "application/json", ...(clientIp ? { "x-forwarded-for": clientIp } : {}) }, body: JSON.stringify({ accountId, mode: "intents" }), signal: AbortSignal.timeout(60000) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new HttpError(r.status === 429 ? 429 : 502, j.error || j.message || `Tidepool faucet error ${r.status}`);
+  return { tx: j.transactions?.[0]?.txHash, drips: j.drips, source: "Tidepool" };
 }
 
-// Reference USD prices (CoinGecko), cached 30 s. tUSDC->USDC, wNEAR->NEAR, tETH->ETH.
+// Reference USD prices (CoinGecko), cached 30 s, keyed by token symbol (USDC, USDT, wNEAR, ETH, wBTC, XAUT).
+const FALLBACK = { USDC: 1, USDT: 1, wNEAR: 2.5, ETH: 3500, wBTC: 100000, XAUT: 3000 };
 let priceCache = { at: 0, v: null };
 async function prices() {
   if (priceCache.v && Date.now() - priceCache.at < 30000) return priceCache.v;
   try {
-    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=usd-coin,near,ethereum&vs_currencies=usd", { signal: AbortSignal.timeout(6000), headers: { accept: "application/json" } });
+    const ids = TOKENS.map((t) => t.cg).join(",");
+    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`, { signal: AbortSignal.timeout(6000), headers: { accept: "application/json" } });
     const j = await r.json();
     if (!j?.near?.usd) throw new Error("bad price response");
-    priceCache = { at: Date.now(), v: { tUSDC: j["usd-coin"]?.usd ?? 1, wNEAR: j.near.usd, tETH: j.ethereum.usd, source: "CoinGecko", at: new Date().toISOString() } };
+    const v = { source: "CoinGecko", at: new Date().toISOString() };
+    for (const t of TOKENS) v[t.symbol] = j[t.cg]?.usd ?? FALLBACK[t.symbol];
+    priceCache = { at: Date.now(), v };
   } catch (e) { if (!priceCache.v) throw new HttpError(503, "Price feed unavailable"); }
   return priceCache.v;
 }
@@ -126,16 +126,12 @@ async function prices() {
 // Anti-spam gate for requests: a fixed public threshold, the same for every deal and independent of
 // deal size (comparing with the sealed amount would leak it by probing). Not a fill guarantee:
 // settlement still fails safely if the taker lacks funds at accept time.
-const MIN_USD = Number(process.env.REQUEST_MIN_USD || 200);
+const MIN_USD = Number(process.env.REQUEST_MIN_USD || 50);
 async function usdHolding(account, symbol) {
   const t = tokenById(symbol); const p = (await prices())[t.symbol];
   const inside = await view(VERIFIER, "mt_balance_of", { account_id: account, token_id: t.id }).catch(() => "0");
   const wallet = await view(t.contract, "ft_balance_of", { account_id: account }).catch(() => "0");
   let units = BigInt(inside || "0") + BigInt(wallet || "0");
-  if (t.contract === "wrap.testnet") { // native NEAR counts too: Deposit wraps it in the same transaction
-    const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_account", finality: "final", account_id: account } }) }).then((x) => x.json()).catch(() => null);
-    if (r?.result?.amount) units += BigInt(r.result.amount);
-  }
   return Number(units) / 10 ** t.decimals * p;
 }
 
@@ -309,12 +305,9 @@ const routes = [
   }],
   ["POST", /^\/api\/faucet$/, async (req) => {
     if (limited(req, 6)) throw new HttpError(429, "Slow down.");
-    const { account: me, token } = await jbody(req); const { sub } = await who(req, me);
-    const day = new Date().toISOString().slice(0, 10), k = `${day}|${sub}|${token}`;
-    if ((db.faucet[k] || 0) >= 3) throw new HttpError(429, "Faucet limit for today reached for this token.");
-    const r = await faucet(me, token); db.faucet[k] = (db.faucet[k] || 0) + 1; save();
-    for (const key of Object.keys(db.faucet)) if (!key.startsWith(day)) delete db.faucet[key];
-    return r;
+    const { account: me } = await jbody(req); await who(req, me);
+    const ipAddr = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+    return faucet(me, ipAddr);
   }],
   ["POST", /^\/api\/fund$/, async (req) => {
     if (limited(req, 5)) throw new HttpError(429, "Slow down.");

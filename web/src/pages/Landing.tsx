@@ -17,7 +17,7 @@ const FEATS = [
   { t: "Expiry & cancel", d: "Deadlines expire offers; cancel burns your nonces on chain.", I: Clock },
   { t: "Google sign-in", d: "Privy gives you a NEAR implicit account. No seed phrase.", I: Fingerprint },
   { t: "Balances in the verifier", d: "Test tokens sit in the intents verifier, ready to settle any deal.", I: Wallet },
-  { t: "Test-token faucet", d: "tUSDC, tETH and wNEAR in one click, straight into your balance.", I: Drop },
+  { t: "Test-token faucet", d: "USDC, USDT, wNEAR, ETH, wBTC and XAUT (Tidepool) in one click, straight into your balance.", I: Drop },
   { t: "Dry-run first", d: "simulate_intents checks every match before gas is spent.", I: Coins },
 ];
 export default function Landing() {

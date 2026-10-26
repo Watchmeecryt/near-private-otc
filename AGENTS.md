@@ -6,7 +6,7 @@
 OTC traders can't find a counterparty without already knowing them, and posting a size/price publicly leaks information.
 
 ## Solution
-An open deal board (no sign-in needed) that shows only pair, side, expiry, status, request and counter-offer counts. Exact terms are sealed to an OutLayer TEE enclave. A taker requests access; the enclave authenticates them and the keeper checks a fixed $200 (CoinGecko) holding of the token the maker wants, wallet + verifier, as a spam filter independent of deal size; the maker approves (NEP-413 signed, or auto-approve "*"); only then does the enclave reveal the terms. Counters and accepts only from approved requesters. Sign-in: Privy (Google) or NEAR Wallet Selector (Meteor, HOT, Intear, HERE, MyNearWallet; Ledger connect-only) with a NEP-413 login. Matching NEP-413 signed `token_diff` intents are settled atomically with `execute_intents` on a NEAR Intents verifier.
+An open deal board (no sign-in needed) that shows only pair, side, expiry, status, request and counter-offer counts. Exact terms are sealed to an OutLayer TEE enclave. A taker requests access; the enclave authenticates them and the keeper checks a fixed $50 (CoinGecko) holding of the token the maker wants, wallet + verifier, as a spam filter independent of deal size; the maker approves (NEP-413 signed, or auto-approve "*"); only then does the enclave reveal the terms. Counters and accepts only from approved requesters. Sign-in: Privy (Google) or NEAR Wallet Selector (Meteor, HOT, Intear, HERE, MyNearWallet; Ledger connect-only) with a NEP-413 login. Matching NEP-413 signed `token_diff` intents are settled atomically with `execute_intents` on a NEAR Intents verifier.
 
 ## Hackathon tracks
 Built at NEAR HACKATHON 2026.
@@ -16,13 +16,13 @@ Built at NEAR HACKATHON 2026.
 ## Features (implemented)
 1. Public deal board with coarse info only (no size range); open to everyone without sign-in. Deals can be public (listed) or private (link only, 16-char unguessable id); private→public only. Expiry chips 2 min (demo), 1h, 24h, 7d; the deadline is inside the signed intent and enforced by the verifier. Enclave check output has no size or price info.
 2. Maker posts: signed token_diff + terms sealed to the enclave.
-3. Request terms: $200 holding check of the wanted token, maker approval (or auto-approve), enclave verifies the sign-in owns the NEAR account and re-seals terms to a one-time browser key.
+3. Request terms: $50 holding check of the wanted token, maker approval (or auto-approve), enclave verifies the sign-in owns the NEAR account and re-seals terms to a one-time browser key.
 4. Accept / Counter / Decline with step indicator; counters are new signed sealed intents.
 5. Atomic settlement: enclave checks exact mirror match → simulate_intents → execute_intents.
 6. Expiry via deadline; cancel via nonce burn (empty intents re-using offer nonces).
 7. My deals with statuses Open, Requested, Countered, Settled, Expired, Cancelled; short links `/d/<id>`.
-8. Wallet: intents balances with an explainer line, faucet (tUSDC, wNEAR, tETH straight into the verifier, 3 claims/token/day), Deposit from your wallet (NEAR-wallet sign-ins only), Withdraw for everyone (Privy and wallet users: token + amount + Max, signed `ft_withdraw` intent to your own account relayed via `/api/withdraw`; registers token storage with `storage_deposit` first if needed; wNEAR arrives as wNEAR), activity.
-   Testnet trust note: the verifier `otcdesk-intents.testnet` is our own unmodified copy of NEAR Intents defuse v0.4.2, and its super-admin is `otcdesk.testnet` (the operator). So on testnet the operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official `intents.near`. Deposits and withdrawals are public on chain, and settled trades are visible on chain; open deal terms stay sealed.
+8. Wallet: intents balances with an explainer line, faucet (Tidepool: all six test tokens straight into the verifier, one claim/account/hour), Deposit from your wallet (NEAR-wallet sign-ins only), Withdraw for everyone (Privy and wallet users: token + amount + Max, signed `ft_withdraw` intent to your own account relayed via `/api/withdraw`; registers token storage with `storage_deposit` first if needed; wNEAR arrives as wNEAR), activity.
+   Testnet trust note: the verifier `verifier.tidepool-sandbox.testnet` is Tidepool's unmodified NEAR Intents defuse v0.4.2 sandbox, operated by Tidepool. So on testnet Tidepool's operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official `intents.near`. Deposits and withdrawals are public on chain, and settled trades are visible on chain; open deal terms stay sealed.
 9. New deal warns when the sold token's balance is too low and links to the faucet.
 10. Keeper funds new Privy implicit accounts with 0.2 test NEAR (up to 3 top-ups per sign-in while the account doesn't exist).
 11. "What you're signing" panel before every signature; privacy note on deal pages; How it works page.
@@ -30,13 +30,11 @@ Built at NEAR HACKATHON 2026.
 ## Deployed ids (testnet)
 | Piece | Id |
 | --- | --- |
-| Verifier | otcdesk-intents.testnet |
+| Verifier | verifier.tidepool-sandbox.testnet |
 | Relayer/keeper | otcdesk.testnet |
-| tUSDC | otcdesk-usdc.testnet |
-| tETH | otcdesk-eth.testnet |
-| wNEAR | wrap.testnet |
+| Tokens (Tidepool) | usdc, usdt, wnear, eth, wbtc, xaut `.tidepool-sandbox.testnet` |
 | OutLayer project | otcdesk-enclave.testnet/private-otc |
-| Enclave wasm sha256 | 1b9862020a7a0e13b809880d6022e6e636712731b325f424a60d108345da1760 (rolled back: OutLayer workers never picked up requests for later builds 6f6fb033…1c19fcec, which timed out; this build carries an older Privy app id/origin) |
+| Enclave wasm sha256 | a1ad0d61d5981b0e5a6f3afd805746e22f4ae0805aa14087360448575615d760 (Tidepool verifier + six Tidepool tokens, Privy app cmvi99u1e01os0il20daip5mv; served from /enclave/<hash>.wasm on the app) |
 | Enclave pubkey | 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8 |
 | App | `https://near-private-otc-productio999n.up.railway.app` or `http://127.0.0.1:8790` locally (`/api/health`) |
 
@@ -60,8 +58,8 @@ Everything below is plain HTTP against the app (`U=https://near-private-otc-prod
 1. **Make a testnet key.** Generate an ed25519 keypair. Your account is the NEAR implicit account = the 32-byte public key as hex. See: an account id like `3f9a…` (64 hex chars).
 2. **Sign in.** Sign a NEP-413 message with `signIntent({ message: JSON.stringify({ otc_login: <account>, ts: Date.now() }), nonce: <32 random bytes>, recipient: "near-private-otc" }, <pubkey base58>, sign)`, then
    `POST /api/auth/wallet` with body `{ "signed": <that signed object> }`. See: `{ "token": "…" }`. Send it as `Authorization: Bearer <token>` on every call below (session lasts 24 h).
-3. **Get test funds.** `POST /api/faucet` with body `{ "account": <account>, "token": "tUSDC" }` (also `"tETH"`, `"wNEAR"`). See: the claim result; 1000 tUSDC, 0.5 tETH or 50 wNEAR land straight in your verifier balance. Limit 3 claims per token per day (429 after that).
-4. **Build the intent.** For selling e.g. 150 tUSDC for 60 wNEAR: `terms = { sell_token, sell_amount: toUnits("150", dec), buy_token, buy_amount: toUnits("60", dec) }` (ids and decimals from `tokenById`), then
+3. **Get test funds.** `POST /api/faucet` with body `{ "account": <account> }` (relayed to Tidepool's faucet, https://www.usetidepool.tech). See: the claim result; 100 USDC, 100 USDT, 40 wNEAR, 0.03 ETH, 0.001 wBTC and 0.03 XAUT land straight in your verifier balance. Limit one claim per account per hour (429 after that).
+4. **Build the intent.** For selling e.g. 50 USDC for 20 wNEAR: `terms = { sell_token, sell_amount: toUnits("150", dec), buy_token, buy_amount: toUnits("60", dec) }` (ids and decimals from `tokenById`), then
    `intent = await signIntent(intentPayload({ signer: <account>, intents: [tokenDiff(sell_token, sell_amount, buy_token, buy_amount)], deadlineMs: Date.now() + 3600e3, nonce }), <pubkey base58>, sign)`. The deadline is your expiry; the verifier enforces it.
 5. **Seal and post.** `offer = { v: 1, deal: <16 chars from 23456789abcdefghjkmnpqrstuvwxyz>, from: <account>, to: "*", terms, note: "", intent }`, then
    `POST /api/deals` with body `{ "offer_ct": seal(ENCLAVE_PUBKEY, offer), "nonce": b64(nonce), "account": <account>, "visibility": "public" }` (or `"private"`). The keeper asks the OutLayer enclave to check it on chain, which can take a while. See: `{ id, pair, side, deadline, status: "Open", check_tx, … }` with no size or price.
@@ -70,10 +68,10 @@ Everything below is plain HTTP against the app (`U=https://near-private-otc-prod
 Errors come back as JSON with an HTTP status, e.g. 400 if the expiry is already past or the offer isn't signed by you and open to `*`.
 
 ### Take a deal as an agent (do X - see Y)
-Continue from steps 1-3 with a second key (the taker). It needs at least $200 of the token the maker wants; one faucet claim is enough.
+Continue from steps 1-3 with a second key (the taker). It needs at least $50 of the token the maker wants; one faucet claim is enough.
 
 7. **Find a deal.** `GET /api/deals` - see open deals with `id`, `pair`, `side`, `deadline`, `auto_approve`. No size or price.
-8. **Request the terms.** `request_ct = seal(ENCLAVE_PUBKEY, { wallet: <your signed login from step 2>, account, deal: <id> })`, then `POST /api/deals/<id>/request` with `{ request_ct, account }`. See: `{ request: { status: "approved" } }` if the maker turned on auto-approve, else `"pending"` until the maker approves (`403` if you hold less than $200 of the wanted token).
+8. **Request the terms.** `request_ct = seal(ENCLAVE_PUBKEY, { wallet: <your signed login from step 2>, account, deal: <id> })`, then `POST /api/deals/<id>/request` with `{ request_ct, account }`. See: `{ request: { status: "approved" } }` if the maker turned on auto-approve, else `"pending"` until the maker approves (`403` if you hold less than $50 of the wanted token).
 9. **Read the sealed terms.** Make a one-time secp256k1 key (`newKeypair()`), `request_ct = seal(ENCLAVE_PUBKEY, { wallet, eph_pub: <its pub>, account, deal })`, `POST /api/deals/<id>/reveal` with `{ request_ct, account }`. See: `offers_ct`; `unseal(<its sk>, offers_ct)` gives the offers you may see, the opening one has `to: "*"` and exact `terms`.
 10. **Accept.** Sign the mirror intent (sell what the maker buys, buy what the maker sells, same amounts, deadline = the opening offer's `deadline`), seal `{ v: 1, deal, from: you, to: <maker>, terms, note: "", intent }`, and `POST /api/deals/<id>/offer` with `{ offer_ct, nonce, account, kind: "accept", reply_to: "o1" }`. See: `{ settled: true, tx }`; the enclave checked the exact match and the relayer ran `execute_intents`. A second accept gets `409 Too late`.
 11. **Post with auto-approve (maker side).** Add `"auto_approval": <NEP-413 signed {"otc_approve": <deal id>, "requester": "*"}, recipient "near-private-otc">` to the `POST /api/deals` body in step 5. See: `auto_approve: true` on the board.
@@ -95,7 +93,7 @@ Continue from steps 1-3 with a second key (the taker). It needs at least $200 of
 
 ### Agent safety
 - Use a dedicated key, implicit account or sub-account with small funds. Never give an agent your main wallet key.
-- The $200 check is a spam filter, not proof that a counterparty can pay.
+- The $50 check is a spam filter, not proof that a counterparty can pay.
 - Auto-approve reveals your exact terms to anyone who passes that check. Leave it off if you want to choose who sees them.
 - Intents settle atomically and only when both sides really hold the funds; otherwise nothing moves. Nothing guarantees a fill or a price.
 - A human should set the agent's limits (pairs, max size, price bounds) and review its trades. Testnet only.
