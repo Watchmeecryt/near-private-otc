@@ -28,9 +28,12 @@ export default function WalletPage() {
   const toast = useToast();
   const [bal, setBal] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState("");
+  const [onWallet, setOnWallet] = useState<string | null>(null); // Privy account's on-chain token balance (deposit token)
   const [acts, setActs] = useState<Act[]>([]);
   const load = () => account && balances(account).then(setBal).catch(() => {});
   useEffect(() => { if (!account) return; setActs(readActs(account)); load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [account]);
+  const loadOnWallet = () => { if (!account || kind === "wallet") return; const t: any = TOKENS.find((x: any) => x.id === depTok); viewCall<string>(t.contract, "ft_balance_of", { account_id: account }).then(setOnWallet).catch(() => setOnWallet("0")); };
+  useEffect(() => { setOnWallet(null); loadOnWallet(); }, [account, kind, depTok]);
   const [tab, setTab] = useState<"faucet" | "move" | "bridge" | "activity">(() => new URLSearchParams(location.search).get("bridge") ? "bridge" : location.hash === "#activity" ? "activity" : location.hash === "#move" ? "move" : "faucet");
   if (!account) return <><Top title="Wallet" /><NeedSignIn what="Sign in to see your balances, claim test tokens and withdraw to your NEAR account." /></>;
   const record = (a: Act) => { const n = [a, ...readActs(account)].slice(0, 20); localStorage.setItem(actKey(account), JSON.stringify(n)); setActs(n); };
@@ -41,10 +44,17 @@ export default function WalletPage() {
   const faucet = async () => { setBusy("Faucet"); try { const r = await api<any>("/api/faucet", { account }); localStorage.setItem(claimKey(account, "all"), String(Date.now())); const detail = TOKENS.map((t: any) => `+${t.faucet} ${t.symbol}`).join(", "); record({ kind: "Faucet", detail, tx: r.tx, at: Date.now() }); toast.show({ title: "Test tokens claimed", sub: `${detail} · via Tidepool`, tone: "success" }); setTimeout(load, 1500); } catch (e: any) { if (/rate limited/i.test(e.message)) localStorage.setItem(claimKey(account, "all"), String(Date.now())); toast.show({ title: "Faucet", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
   const lastClaim = Number(localStorage.getItem(claimKey(account, "all")) || 0); const coolLeft = Math.max(0, lastClaim + 3600_000 - Date.now());
   const deposit = () => { const t: any = TOKENS.find((x: any) => x.id === depTok); let units: string; try { units = toUnits(depAmt, t.decimals); } catch { return toast.show({ title: "Enter an amount", tone: "error" }); }
+    if (kind !== "wallet") {
+      if (BigInt(units) <= 0n) return toast.show({ title: "Enter an amount above 0", tone: "error" });
+      if (onWallet !== null && BigInt(units) > BigInt(onWallet)) return toast.show({ title: "Not enough balance", sub: `Your Privy NEAR account holds ${fromUnits(onWallet, t.decimals, 6)} ${t.symbol}.`, tone: "error" });
+    }
     return run("Deposit", `${depAmt} ${t.symbol} into Private OTC`, async () => {
       const calls = [{ method: "ft_transfer_call", args: { receiver_id: VERIFIER, amount: units, msg: account }, tgas: 100, deposit: "1" }];
-      return (await walletTx(t.contract, calls)) || "";
+      if (kind === "wallet") return (await walletTx(t.contract, calls)) || "";
+      const tx = (await sendTx(account, t.contract, calls)) || ""; // Privy: signed with the embedded key, you pay the gas
+      setDepAmt(""); setTimeout(loadOnWallet, 1500); return tx;
     }); };
+  const dt: any = TOKENS.find((x: any) => x.id === depTok)!;
   const wt: any = TOKENS.find((x: any) => x.id === wdTok)!;
   const wdMax = bal ? fromUnits(bal[wt.id] || "0", wt.decimals, wt.decimals) : "0";
   const withdraw = () => { let units: bigint; try { units = BigInt(toUnits(wdAmt, wt.decimals)); } catch { return toast.show({ title: "Enter a valid amount", tone: "error" }); }
@@ -90,16 +100,15 @@ export default function WalletPage() {
           <p className="tiny muted">Faucet by <a href="https://www.usetidepool.tech/docs/guides/faucet" target="_blank" rel="noreferrer">Tidepool</a>.</p>
         </section>}
         {tab === "move" && <div className="w-move">
-        {kind === "wallet" && (
-          <section className="card card-pad w-dep">
+        <section className="card card-pad w-dep">
             <h3 className="h3"><Coins size={18} weight="duotone" /> Deposit from your wallet</h3>
-            <p className="small muted">Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into Private OTC so deals can settle. You pay a little gas.</p>
+            <p className="small muted">{kind === "wallet" ? <>Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into Private OTC so deals can settle. You pay a little gas.</> : <>Move tokens from your Privy NEAR account (<span className="mono">{account}</span>) into Private OTC so deals can settle.</>}</p>
             <div className="field-row"><label className="field"><span>Amount</span><input className="input mono" inputMode="decimal" value={depAmt} onChange={(e) => setDepAmt(e.target.value.replace(",", "."))} placeholder="0.5" /></label>
               <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.filter((x: any) => !x.chain).map((x: any) => ({ value: x.id, label: tokenLabel(x) }))} /></div></div>
+            {kind !== "wallet" && <p className="tiny muted">On your account: <span className="mono">{onWallet !== null ? fromUnits(onWallet, dt.decimals, 6) : "…"} {dt.symbol}</span></p>}
             <p className="tiny muted">Depositing from Base, Arbitrum or Ethereum Sepolia? Use the <button type="button" className="linkish" onClick={() => setTab("bridge")}>Cross-chain tab</button>.</p>
-            <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(depAmt) > 0)} onClick={deposit}>{busy === "Deposit" ? "Waiting for wallet…" : "Deposit"}</button>
-          </section>
-        )}
+            <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(depAmt) > 0)} onClick={deposit}>{busy === "Deposit" ? (kind === "wallet" ? "Waiting for wallet…" : "Depositing…") : "Deposit"}</button>
+        </section>
         <section className="card card-pad w-wd">
           <h3 className="h3"><ArrowUp size={18} /> Withdraw</h3>
           <p className="small muted">Move tokens from the verifier back to your own NEAR account <span className="mono">{account}</span>. You sign a withdrawal intent; the relayer pays the gas.</p>
