@@ -48,7 +48,7 @@ export default function WalletPage() {
       if (BigInt(units) <= 0n) return toast.show({ title: "Enter an amount above 0", tone: "error" });
       if (onWallet !== null && BigInt(units) > BigInt(onWallet)) return toast.show({ title: "Not enough balance", sub: `Your Privy NEAR account holds ${fromUnits(onWallet, t.decimals, 6)} ${t.symbol}.`, tone: "error" });
     }
-    return run("Deposit", `${depAmt} ${t.symbol} into Private OTC`, async () => {
+    return run("Deposit", `${depAmt} ${t.symbol} into your NEAR Intents verifier balance`, async () => {
       const calls = [{ method: "ft_transfer_call", args: { receiver_id: VERIFIER, amount: units, msg: account }, tgas: 100, deposit: "1" }];
       if (kind === "wallet") return (await walletTx(t.contract, calls)) || "";
       const tx = (await sendTx(account, t.contract, calls)) || ""; // Privy: signed with the embedded key, you pay the gas
@@ -102,7 +102,7 @@ export default function WalletPage() {
         {tab === "move" && <div className="w-move">
         <section className="card card-pad w-dep">
             <h3 className="h3"><Coins size={18} weight="duotone" /> Deposit from your wallet</h3>
-            <p className="small muted">{kind === "wallet" ? <>Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into Private OTC so deals can settle. You pay a little gas.</> : <>Move tokens from your Privy NEAR account (<span className="mono">{account}</span>) into Private OTC so deals can settle.</>}</p>
+            <p className="small muted">{kind === "wallet" ? <>Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into your balance in the NEAR Intents verifier, where deals settle. You pay a little gas.</> : <>Move tokens from your Privy NEAR account (<span className="mono">{account}</span>) into your balance in the NEAR Intents verifier, where deals settle. You pay a little gas.</>}</p>
             <div className="field-row"><label className="field"><span>Amount</span><input className="input mono" inputMode="decimal" value={depAmt} onChange={(e) => setDepAmt(e.target.value.replace(",", "."))} placeholder="0.5" /></label>
               <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.filter((x: any) => !x.chain).map((x: any) => ({ value: x.id, label: tokenLabel(x) }))} /></div></div>
             {kind !== "wallet" && <p className="tiny muted">On your account: <span className="mono">{onWallet !== null ? fromUnits(onWallet, dt.decimals, 6) : "…"} {dt.symbol}</span></p>}
