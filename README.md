@@ -55,6 +55,8 @@ AI agents can also trade here (see [AGENTS.md](AGENTS.md)); that is a feature, n
 
 The same builder is submitting two independent projects to NEAR HACKATHON: this one (NEAR Private OTC, a private OTC deal board) and **Morrowseal** (a private inheritance vault with a dead-man timer): https://morrowseal-production.up.railway.app. They are different products with different problems, users, contracts, enclaves and deployments. They were built with the same general stack (OutLayer, Privy sign-in, ECIES sealing), which is why some helper code looks alike. This is not the same project submitted twice.
 
+Tidepool (https://www.usetidepool.tech) is a free, public testnet tool for NEAR Intents builders, made by the same builder. It is not part of this submission. NEAR Private OTC uses it as testnet infrastructure.
+
 ## Demo post
 
 Demo post on X: added on 2026-11-01
