@@ -8,7 +8,7 @@
 - Tokens (Tidepool test tokens, no value): USDC, USDT, wNEAR, ETH, wBTC, XAUT = <usdc|usdt|wnear|eth|wbtc|xaut>.tidepool-sandbox.testnet
 - Enclave: OutLayer project otcdesk-enclave.testnet/private-otc, pubkey 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8
 - Sign-in: Privy (Google) → NEAR implicit account, or a NEAR wallet via Wallet Selector; the board needs no sign-in
-- Built at NEAR HACKATHON 2026; track: defi (privacy is a supporting feature: terms sealed in OutLayer TDX)
+- Built at NEAR HACKATHON 2026; tracks: defi (atomic settlement in the NEAR Intents verifier, cross-chain legs via 1Click), privacy (private finance: deal terms sealed in OutLayer TDX; settled trades are public on chain)
 
 ## Pages
 - [Board](/app): open deals (coarse info)

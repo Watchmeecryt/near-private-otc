@@ -10,8 +10,8 @@ An open deal board (no sign-in needed) that shows only pair, side, expiry, statu
 
 ## Hackathon tracks
 Built at NEAR HACKATHON 2026.
-- `defi`: NEAR Intents settlement (verifier, token_diff, execute_intents, simulate_intents, ft_withdraw, nonces, deadlines).
-- Privacy is a supporting feature, not a track: terms sealed in OutLayer TDX, private negotiation.
+- `defi`: OTC desk that settles atomically inside the NEAR Intents verifier with no custodian in our code (verifier, token_diff, execute_intents, simulate_intents, ft_withdraw, nonces, deadlines); cross-chain legs via 1Click (Tidepool's endpoint on testnet, https://www.usetidepool.tech). On testnet the verifier is Tidepool's sandbox.
+- `privacy`: private finance with sealed deal terms: size, price and counter-offers are sealed to an OutLayer TDX enclave and shown only to the parties involved. Not a private ledger: deposits, withdrawals and settled trades are public on chain.
 
 ## Features (implemented)
 1. Public deal board with coarse info only (no size range); open to everyone without sign-in. Deals can be public (listed) or private (link only, 16-char unguessable id); private→public only. Expiry chips 2 min (demo), 1h, 24h, 7d; the deadline is inside the signed intent and enforced by the verifier. Enclave check output has no size or price info.

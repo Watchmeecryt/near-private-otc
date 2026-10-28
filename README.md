@@ -24,14 +24,40 @@ This app is that market: an open board for finding counterparties, sealed terms,
 
 **Agents, one command:** `U=https://near-private-otc-productio999n.up.railway.app node scripts/agents/run.mjs --negotiate` (Node 20+, after `npm ci`; no keys needed, it makes fresh testnet accounts) - see a maker and a taker agent post, counter, counter back and settle, with a NearBlocks link per step. More in [AGENTS.md](AGENTS.md).
 
-## Hackathon tracks: `defi`, `agents`
+## Hackathon tracks: `defi`, `privacy`
 
 Built at NEAR HACKATHON 2026. Tracks:
 
-- `defi` - OTC trading settled with NEAR Intents: `token_diff` intents, `simulate_intents`, atomic `execute_intents`, nonces and deadlines.
-- `agents` - AI agents can trade here without a human: sign in with a NEAR key (NEP-413), take test tokens from the faucet, post or take a deal, request sealed terms and settle through NEAR Intents. See "Try it as an agent" in [AGENTS.md](AGENTS.md) and [llms.txt](web/public/llms.txt). Ready-made agents in `scripts/agents/`: a maker and a taker agent (or N racing takers) trade end to end with no human, optionally from their own NEAR sub-accounts. With `--negotiate` they haggle privately first: the taker sends a sealed, signed counter, the maker accepts or counters back, and the agreed price settles through NEAR Intents.
+- `defi` (Unstoppable DeFi: "exchanges ... that settle across chains through NEAR Intents ... no custodian"): this is an OTC desk where both sides sign `token_diff` intents and the NEAR Intents verifier settles them atomically in one `execute_intents` call (after a `simulate_intents` dry run), so the app never takes custody of the two legs. Cross-chain legs (bridged USDC/USDT) go through the 1Click API; on testnet that API is Tidepool's, at https://www.usetidepool.tech. Limit: on testnet the verifier is Tidepool's unmodified sandbox, operated by Tidepool, so "no custodian" holds for our keeper and enclave, not for Tidepool's operator (see Limits).
+- `privacy` (Privacy & Private AI: "private finance"): deal size, price, notes and counter-offers are sealed to an OutLayer enclave (Intel TDX) and revealed only to the parties involved, so the public board shows only pair, side, expiry, status and counts. Limit: this is sealed deal terms, not a private ledger. Deposits, withdrawals and settled trades are public on chain, and you trust OutLayer's TEE and Privy's answer about which wallet belongs to a sign-in.
 
-Privacy is a supporting feature, not a track: exact terms and counter-offers are sealed in an OutLayer enclave (Intel TDX); the operator never holds the key.
+AI agents can also trade here (see [AGENTS.md](AGENTS.md)); that is a feature, not a submitted track.
+
+## Libraries and baseline
+
+**Baseline.** There is no pre-hackathon baseline in this repository. All code was written from 2026-10-20 onward (first commit 2026-10-20 UTC), inside the window that began on 2026-10-19 (Q-001). AI coding tools were used to write and edit code and docs. The only code we did not write is the upstream wasm in `contracts/` (below) and the third-party libraries and services listed here.
+
+**Dependencies** (from `package.json`, `web/package.json` and `enclave/Cargo.toml`):
+
+- Keeper / shared (Node 20+): `eciesjs`, `jose`, `near-api-js` (v5).
+- Web app: `react`, `react-dom`, `react-router-dom`, `vite`, `@vitejs/plugin-react`, `typescript`, `near-api-js` (v7), `eciesjs`, `@privy-io/react-auth`, `@near-wallet-selector/*` (core, modal-ui, meteor-wallet, hot-wallet, intear-wallet, here-wallet, my-near-wallet, ledger), `@solana/kit`, `@solana-program/system`, `@solana-program/token`, `@phosphor-icons/react`, `@dicebear/core`, `@dicebear/collection`, `@unlocalhosted/metalui`, `buffer`. Fonts Geist and OpenRunde (SIL OFL, files in `web/public/fonts`).
+- Enclave (Rust, `wasm32-wasip2`): `serde`, `serde_json`, `sha2`, `hkdf`, `hex`, `base64`, `p256`, `ecies`, `libsecp256k1`, `ed25519-dalek`, `bs58`, `wasi-http-client`.
+
+**External pieces:**
+
+- NEAR Intents verifier: the upstream `near/intents` release `defuse/v0.4.2` wasm, unmodified (`contracts/`, sha256 in `contracts/README.md`). On testnet it runs at `verifier.tidepool-sandbox.testnet`, deployed and operated by Tidepool. On mainnet this would be `intents.near`.
+- Tidepool (https://www.usetidepool.tech): sandbox verifier, test tokens, faucet, and the testnet 1Click API with bridged USDC/USDT.
+- OutLayer (TEE on Intel TDX): runs our enclave worker (`otcdesk-enclave.testnet/private-otc`).
+- Privy: Google sign-in and NEAR implicit accounts; NEAR Wallet Selector wallets as the other sign-in.
+- CoinGecko (price for the $50 holding check), NearBlocks (explorer links), public NEAR RPC (FastNEAR, Pagoda, Lava), Railway (hosting).
+
+## Disclosure (Q-015)
+
+The same builder is submitting two independent projects to NEAR HACKATHON: this one (NEAR Private OTC, a private OTC deal board) and **Morrowseal** (a private inheritance vault with a dead-man timer): https://morrowseal-production.up.railway.app. They are different products with different problems, users, contracts, enclaves and deployments. They were built with the same general stack (OutLayer, Privy sign-in, ECIES sealing), which is why some helper code looks alike. This is not the same project submitted twice.
+
+## Demo post
+
+Demo post on X: added on 2026-11-01
 
 ## How it works: one trade, six steps
 
@@ -213,4 +239,4 @@ Enclave rebuild: `PRIVY_APP_ID=cmvi99u1e01os0il20daip5mv APP_ORIGIN=https://your
 
 ## License
 
-MIT
+MIT, see [LICENSE](LICENSE).
