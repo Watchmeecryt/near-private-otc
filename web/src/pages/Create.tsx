@@ -20,14 +20,14 @@ const nice = (n: string) => Number(n).toLocaleString(undefined, { maximumFractio
 /** What the public board shows: pair direction only (no amounts, no size range). */
 const boardPreview = (give: string, get: string) => `${tok(give).symbol} → ${tok(get).symbol}`;
 
-function TokenRow({ label, amount, setAmount, token, setToken, bal, hint, usdVal }: { label: string; amount: string; setAmount: (v: string) => void; token: string; setToken: (v: string) => void; bal?: string; hint?: React.ReactNode; usdVal?: number | null }) {
+function TokenRow({ label, amount, setAmount, token, setToken, bal, bals, hint, usdVal }: { label: string; amount: string; setAmount: (v: string) => void; token: string; setToken: (v: string) => void; bal?: string; bals?: Record<string, string> | null; hint?: React.ReactNode; usdVal?: number | null }) {
   const t = tok(token);
   return (
     <div className="swap-row">
       <div className="sr-top"><span>{label}</span>{bal !== undefined && label === "You sell" && <button type="button" className="sr-bal" onClick={() => setAmount(fromUnits(bal, t.decimals, 6))}>Balance {nice(fromUnits(bal, t.decimals, 6))} · Max</button>}</div>
       <div className="sr-main">
         <input className="sr-amt mono" inputMode="decimal" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value.replace(",", "."))} aria-label={`${label} amount`} />
-        <div className="sr-tok"><Pick label={`${label} token`} value={token} onChange={setToken} options={TOKENS.map((x: any) => ({ value: x.id, label: tokenLabel(x), lead: <TokenIcon t={x.symbol} size={20} /> }))} /></div>
+        <div className="sr-tok"><Pick label={`${label} token`} value={token} onChange={setToken} options={TOKENS.map((x: any) => ({ value: x.id, label: tokenLabel(x), lead: <TokenIcon t={x.symbol} size={20} />, bal: label === "You sell" && bals ? fromUnits(bals[x.id] || "0", x.decimals, 4) : undefined }))} /></div>
       </div>
       {usdVal ? <div className="sr-usd">≈ {fmtUsd(usdVal)}</div> : null}
       {hint}
@@ -82,7 +82,7 @@ export default function Create() {
       <Top title="New deal" sub="Offer tokens, name what you want back. Only the person you deal with sees the numbers." />
       <div className="create-col">
         <div className="card card-pad swap-card">
-          <TokenRow label="You sell" usdVal={usd(prices, give) && Number(giveAmt) > 0 ? usd(prices, give)! * Number(giveAmt) : null} amount={giveAmt} setAmount={setGiveAmt} token={give} setToken={pickGive} bal={bal?.[give]}
+          <TokenRow label="You sell" usdVal={usd(prices, give) && Number(giveAmt) > 0 ? usd(prices, give)! * Number(giveAmt) : null} amount={giveAmt} setAmount={setGiveAmt} token={give} setToken={pickGive} bal={bal?.[give]} bals={bal}
             hint={bad(giveAmt) ? <p className="sr-hint err">Enter an amount above 0.</p> : low ? <p className="sr-hint warn-note">You only have {nice(fromUnits(bal![give], tok(give).decimals, 6))} {tok(give).symbol}. <Link to="/app/wallet#faucet" className="link">Get free test tokens →</Link> or <Link to="/app/wallet?bridge=in" className="link">fund from Base, Arbitrum or Ethereum Sepolia →</Link></p> : null} />
           <div className="swap-mid"><button type="button" className="swap-flip" onClick={flip} aria-label="Swap sides"><ArrowsDownUp size={18} weight="bold" /></button></div>
           <TokenRow label="You receive" usdVal={usd(prices, get) && Number(getAmt) > 0 ? usd(prices, get)! * Number(getAmt) : null} amount={getAmt} setAmount={setReceive} token={get} setToken={pickGet} bal={bal?.[get]}

@@ -14,7 +14,7 @@
 - [Board](/app): open deals (coarse info)
 - [New deal](/app/new)
 - [My deals](/app/mine)
-- [Wallet](/app/wallet): verifier balances, faucet (Tidepool: USDC, USDT, wNEAR, ETH, wBTC, XAUT), deposit from your wallet (NEAR-wallet sign-ins), withdraw to your own NEAR account (everyone, signed ft_withdraw intent), activity
+- [Wallet](/app/wallet): verifier balances, faucet (Tidepool: USDC, USDT, wNEAR, ETH, wBTC, XAUT), deposit from your wallet (all sign-ins; shows your on-chain wallet balance per token), withdraw to your own NEAR account (everyone, signed ft_withdraw intent), activity
 - Balances are held in the NEAR Intents verifier. Deposits and withdrawals are public on chain, and settled trades are visible on chain; open deal terms stay sealed.
 - Testnet trust note: the verifier `verifier.tidepool-sandbox.testnet` is Tidepool's unmodified NEAR Intents defuse v0.4.2 sandbox, operated by Tidepool. So on testnet Tidepool's operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official intents.near.
 - [How it works](/app/how): flow, privacy, every NEAR feature used

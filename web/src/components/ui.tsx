@@ -77,7 +77,9 @@ export function Steps({ at }: { at: number }) {
 }
 
 import { Select } from "@unlocalhosted/metalui";
-/** Rounded Meta UI select (frosted menu) used for every dropdown. */
-export function Pick<V extends string>({ value, onChange, options, label }: { value: V; onChange: (v: V) => void; options: { value: V; label: string }[]; label: string }) {
-  return <Select<V> className="pick" aria-label={label} options={options} value={value} onValueChange={onChange} />;
+/** Rounded Meta UI select (frosted menu) used for every dropdown. An option may carry `bal` (a formatted
+ *  balance): it is shown right-aligned in the open menu only, never in the closed trigger (no layout shift). */
+export function Pick<V extends string>({ value, onChange, options, label }: { value: V; onChange: (v: V) => void; options: { value: V; label: string; lead?: ReactNode; bal?: string }[]; label: string }) {
+  const opts = options.map((o) => ({ value: o.value, lead: o.lead, label: (o.bal === undefined ? o.label : <span className="opt"><span className="opt-sym">{o.label}</span><span className="opt-bal mono">{o.bal}</span></span>) as unknown as string }));
+  return <Select<V> className="pick" aria-label={label} options={opts} value={value} onValueChange={onChange} />;
 }

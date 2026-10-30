@@ -273,3 +273,16 @@ html[data-theme="dark"] .bubble.theirs { --other: rgba(130, 168, 235, .16); bord
 .av-more { height: 26px; min-width: 26px; padding: 0 6px; display: inline-grid; place-items: center; font-size: 11px; font-weight: 600; background: var(--soft-2, #eee); color: inherit; border-radius: 13px !important; }
 .vw-count { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 760px) { .board-card .dr-meta { flex-wrap: wrap; } }
+
+/* Token dropdowns with a balance: symbol left, balance right in the open menu; trigger shows the symbol only */
+.opt { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; width: 100%; min-width: 0; }
+.opt-sym { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-bal { flex: none; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.mu-select-trigger .opt { display: contents; }
+.mu-select-trigger .opt-bal { display: none; }
+/* Deposit card: wallet balance line + Max (reserved height so nothing jumps while it loads) */
+.w-balrow { display: flex; align-items: center; gap: 8px; min-height: 26px; margin: 0 0 8px; }
+.w-max { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--brand); cursor: pointer; padding: 2px 4px; margin-left: auto; }
+.w-max:disabled { opacity: .45; cursor: default; }
+.w-insuff { color: var(--bad, #c21d1d); }
+@media (max-width: 480px) { .opt { gap: 12px; } }

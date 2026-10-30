@@ -28,33 +28,39 @@ export default function WalletPage() {
   const toast = useToast();
   const [bal, setBal] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState("");
-  const [onWallet, setOnWallet] = useState<string | null>(null); // Privy account's on-chain token balance (deposit token)
+  const [wal, setWal] = useState<Record<string, string> | null>(null); // connected NEAR account's on-chain NEP-141 balance per token (what Deposit moves)
   const [acts, setActs] = useState<Act[]>([]);
   const load = () => account && balances(account).then(setBal).catch(() => {});
   useEffect(() => { if (!account) return; setActs(readActs(account)); load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [account]);
-  const loadOnWallet = () => { if (!account || kind === "wallet") return; const t: any = TOKENS.find((x: any) => x.id === depTok); viewCall<string>(t.contract, "ft_balance_of", { account_id: account }).then(setOnWallet).catch(() => setOnWallet("0")); };
-  useEffect(() => { setOnWallet(null); loadOnWallet(); }, [account, kind, depTok]);
+  // ft_balance_of on each token contract for the connected account (works for Privy and wallet-selector accounts alike).
+  // wNEAR is a NEP-141 here too (wnear.tidepool-sandbox.testnet), so ft_balance_of is the balance a deposit actually spends.
+  // A failed read keeps the last value (or null = unknown), so it never blocks a deposit by itself.
+  const walletToks = TOKENS.filter((x: any) => !x.chain) as any[];
+  const loadWallet = () => { if (!account) return; Promise.all(walletToks.map((t) => viewCall<string>(t.contract, "ft_balance_of", { account_id: account }).then((v) => [t.id, v || "0"] as const).catch(() => [t.id, null] as const)))
+    .then((rows) => setWal((prev) => { const o: Record<string, string> = { ...(prev || {}) }; for (const [id, v] of rows) if (v !== null) o[id] = v; return Object.keys(o).length ? o : prev; })); };
+  useEffect(() => { setWal(null); loadWallet(); }, [account, kind]);
   const [tab, setTab] = useState<"faucet" | "move" | "bridge" | "activity">(() => new URLSearchParams(location.search).get("bridge") ? "bridge" : location.hash === "#activity" ? "activity" : location.hash === "#move" ? "move" : "faucet");
   if (!account) return <><Top title="Wallet" /><NeedSignIn what="Sign in to see your balances, claim test tokens and withdraw to your NEAR account." /></>;
   const record = (a: Act) => { const n = [a, ...readActs(account)].slice(0, 20); localStorage.setItem(actKey(account), JSON.stringify(n)); setActs(n); };
   const run = async (kind: string, detail: string, f: () => Promise<string>) => {
-    try { setBusy(kind); const tx = await f(); record({ kind, detail, tx, at: Date.now() }); toast.show({ title: `${kind} done`, sub: tx ? `${detail} · https://testnet.nearblocks.io/txns/${tx}` : detail, tone: "success" }); setTimeout(load, 1500); }
+    try { setBusy(kind); const tx = await f(); record({ kind, detail, tx, at: Date.now() }); toast.show({ title: `${kind} done`, sub: tx ? `${detail} · https://testnet.nearblocks.io/txns/${tx}` : detail, tone: "success" }); setTimeout(load, 1500); setTimeout(loadWallet, 1500); setTimeout(() => { load(); loadWallet(); }, 6000); }
     catch (e: any) { toast.show({ title: `${kind} failed`, sub: e.message, tone: "error" }); } finally { setBusy(""); }
   };
   const faucet = async () => { setBusy("Faucet"); try { const r = await api<any>("/api/faucet", { account }); localStorage.setItem(claimKey(account, "all"), String(Date.now())); const detail = TOKENS.map((t: any) => `+${t.faucet} ${t.symbol}`).join(", "); record({ kind: "Faucet", detail, tx: r.tx, at: Date.now() }); toast.show({ title: "Test tokens claimed", sub: `${detail} · via Tidepool`, tone: "success" }); setTimeout(load, 1500); } catch (e: any) { if (/rate limited/i.test(e.message)) localStorage.setItem(claimKey(account, "all"), String(Date.now())); toast.show({ title: "Faucet", sub: e.message, tone: "error" }); } finally { setBusy(""); } };
   const lastClaim = Number(localStorage.getItem(claimKey(account, "all")) || 0); const coolLeft = Math.max(0, lastClaim + 3600_000 - Date.now());
   const deposit = () => { const t: any = TOKENS.find((x: any) => x.id === depTok); let units: string; try { units = toUnits(depAmt, t.decimals); } catch { return toast.show({ title: "Enter an amount", tone: "error" }); }
-    if (kind !== "wallet") {
-      if (BigInt(units) <= 0n) return toast.show({ title: "Enter an amount above 0", tone: "error" });
-      if (onWallet !== null && BigInt(units) > BigInt(onWallet)) return toast.show({ title: "Not enough balance", sub: `Your Privy NEAR account holds ${fromUnits(onWallet, t.decimals, 6)} ${t.symbol}.`, tone: "error" });
-    }
+    if (BigInt(units) <= 0n) return toast.show({ title: "Enter an amount above 0", tone: "error" });
+    if (walHave !== null && BigInt(units) > walHave) return toast.show({ title: "Insufficient wallet balance", sub: `Your wallet holds ${fromUnits(walHave.toString(), t.decimals, 6)} ${t.symbol}.`, tone: "error" });
     return run("Deposit", `${depAmt} ${t.symbol} into your NEAR Intents verifier balance`, async () => {
       const calls = [{ method: "ft_transfer_call", args: { receiver_id: VERIFIER, amount: units, msg: account }, tgas: 100, deposit: "1" }];
-      if (kind === "wallet") return (await walletTx(t.contract, calls)) || "";
-      const tx = (await sendTx(account, t.contract, calls)) || ""; // Privy: signed with the embedded key, you pay the gas
-      setDepAmt(""); setTimeout(loadOnWallet, 1500); return tx;
+      const tx = kind === "wallet" ? ((await walletTx(t.contract, calls)) || "") : ((await sendTx(account, t.contract, calls)) || ""); // Privy: signed with the embedded key, you pay the gas
+      setDepAmt(""); return tx;
     }); };
   const dt: any = TOKENS.find((x: any) => x.id === depTok)!;
+  const walHave: bigint | null = wal && wal[dt.id] !== undefined ? BigInt(wal[dt.id]) : null; // null = still loading / unreadable
+  let depUnits: bigint | null = null; try { depUnits = depAmt ? BigInt(toUnits(depAmt, dt.decimals)) : null; } catch {}
+  const insufficient = walHave !== null && depUnits !== null && depUnits > walHave;
+  const walFmt = (id: string, d: number) => (wal && wal[id] !== undefined ? fromUnits(wal[id], d, 4) : "…");
   const wt: any = TOKENS.find((x: any) => x.id === wdTok)!;
   const wdMax = bal ? fromUnits(bal[wt.id] || "0", wt.decimals, wt.decimals) : "0";
   const withdraw = () => { let units: bigint; try { units = BigInt(toUnits(wdAmt, wt.decimals)); } catch { return toast.show({ title: "Enter a valid amount", tone: "error" }); }
@@ -104,16 +110,16 @@ export default function WalletPage() {
             <h3 className="h3"><Coins size={18} weight="duotone" /> Deposit from your wallet</h3>
             <p className="small muted">{kind === "wallet" ? <>Move tokens from your {walletId?.replace(/-wallet$/, "") || "NEAR"} wallet into your balance in the NEAR Intents verifier, where deals settle. You pay a little gas.</> : <>Move tokens from your Privy NEAR account (<span className="mono">{account}</span>) into your balance in the NEAR Intents verifier, where deals settle. You pay a little gas.</>}</p>
             <div className="field-row"><label className="field"><span>Amount</span><input className="input mono" inputMode="decimal" value={depAmt} onChange={(e) => setDepAmt(e.target.value.replace(",", "."))} placeholder="0.5" /></label>
-              <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={TOKENS.filter((x: any) => !x.chain).map((x: any) => ({ value: x.id, label: tokenLabel(x) }))} /></div></div>
-            {kind !== "wallet" && <p className="tiny muted">On your account: <span className="mono">{onWallet !== null ? fromUnits(onWallet, dt.decimals, 6) : "…"} {dt.symbol}</span></p>}
+              <div className="field"><span>Token</span><Pick label="Deposit token" value={depTok} onChange={setDepTok} options={walletToks.map((x: any) => ({ value: x.id, label: tokenLabel(x), bal: walFmt(x.id, x.decimals) }))} /></div></div>
+            <p className="tiny muted w-balrow">Wallet balance: <span className={`mono ${insufficient ? "w-insuff" : ""}`}>{walHave !== null ? fromUnits(walHave.toString(), dt.decimals, 6) : "…"} {dt.symbol}</span><button type="button" className="w-max" onClick={() => walHave !== null && setDepAmt(fromUnits(walHave.toString(), dt.decimals, dt.decimals))} disabled={walHave === null || walHave === 0n}>Max</button></p>
             <p className="tiny muted">Depositing from Base, Arbitrum or Ethereum Sepolia? Use the <button type="button" className="linkish" onClick={() => setTab("bridge")}>Cross-chain tab</button>.</p>
-            <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(depAmt) > 0)} onClick={deposit}>{busy === "Deposit" ? (kind === "wallet" ? "Waiting for wallet…" : "Depositing…") : "Deposit"}</button>
+            <button className="btn btn-dark btn-sm" disabled={!!busy || !(Number(depAmt) > 0) || insufficient} onClick={deposit}>{busy === "Deposit" ? (kind === "wallet" ? "Waiting for wallet…" : "Depositing…") : insufficient ? "Insufficient wallet balance" : "Deposit"}</button>
         </section>
         <section className="card card-pad w-wd">
           <h3 className="h3"><ArrowUp size={18} /> Withdraw</h3>
           <p className="small muted">Move tokens from the verifier back to your own NEAR account <span className="mono">{account}</span>. You sign a withdrawal intent; the relayer pays the gas.</p>
           <div className="field-row">
-            <div className="field"><span>Token</span><Pick label="Withdraw token" value={wdTok} onChange={(v: string) => { setWdTok(v); setWdAmt(""); }} options={TOKENS.map((x: any) => ({ value: x.id, label: tokenLabel(x) }))} /></div>
+            <div className="field"><span>Token</span><Pick label="Withdraw token" value={wdTok} onChange={(v: string) => { setWdTok(v); setWdAmt(""); }} options={TOKENS.map((x: any) => ({ value: x.id, label: tokenLabel(x), bal: bal ? fromUnits(bal[x.id] || "0", x.decimals, 4) : "…" }))} /></div>
             <label className="field"><span>Amount <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 6, padding: "0 8px", minHeight: 0, fontSize: 11 }} onClick={() => setWdAmt(wdMax)} disabled={!bal}>Max</button></span><input className="input mono" inputMode="decimal" value={wdAmt} onChange={(e) => setWdAmt(e.target.value.replace(",", "."))} placeholder="0.0" /></label>
           </div>
           <p className="tiny muted">Available: <span className="mono">{bal ? fromUnits(bal[wt.id] || "0", wt.decimals, 6) : "…"} {wt.symbol}</span></p>
