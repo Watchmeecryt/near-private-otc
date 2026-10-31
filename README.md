@@ -18,6 +18,8 @@ This app is that market: an open board for finding counterparties, sealed terms,
 
 ## Try it in 2 minutes (do X - see Y)
 
+**AI reviewer, one call, no clone, no keys:** `curl -sX POST https://near-private-otc-productio999n.up.railway.app/api/demo/run` - do this and see (about 2 minutes) a JSON step log where a fixed maker demo account posts a tiny deal to the board, a taker counters, the maker accepts the counter and it settles via `execute_intents` on the Tidepool-sandbox verifier, with the equivalent public request, response and NearBlocks link per step plus the deal link `/d/<id>`. Testnet only, two fixed demo accounts (`GET /api/demo/status` lists their public ids); rate-limited to 2 runs per 10 min per IP, one run at a time, and it refuses with a 503 `low-balance` message if the demo accounts or relayer run low.
+
 1. **Open [https://near-private-otc-productio999n.up.railway.app/app](https://near-private-otc-productio999n.up.railway.app/app), no sign-in** - see the open deals: pair, side, expiry, status and counts. No size or price.
 2. **Sign in with Google, then Wallet -> Faucet** - see Tidepool test USDC, USDT, wNEAR, ETH, wBTC and XAUT in your balance and 0.25 test NEAR for gas on your new account.
 3. **Open a deal -> Request terms -> Accept (or New deal to post your own)** - see the sealed terms open for you, then the deal turn Settled with a NearBlocks `execute_intents` tx.

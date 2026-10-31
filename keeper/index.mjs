@@ -9,6 +9,7 @@ import { account, call, view, lastValue, RPC } from "./chain.mjs";
 import { enclave } from "./enclave.mjs";
 import { fund, privyNearAccounts } from "./fund.mjs";
 import { walletLogin } from "./walletauth.mjs";
+import { runDemo, demoStatus } from "./demo.mjs";
 import { VERIFIER, TIDEPOOL, TOKENS, CHAINS, bridged, tokenById, toUnits, base58, randomBytes } from "../shared/otc.mjs";
 
 const RPC_UPSTREAMS = (process.env.RPC_UPSTREAMS || "https://test.rpc.fastnear.com,https://neart.lava.build,https://rpc.testnet.pagoda.co").split(",");
@@ -402,6 +403,16 @@ http.createServer(async (req, res) => {
         } catch (e) { lastErr = `${up} ${e.message}`; }
       }
       return json(res, 502, { jsonrpc: "2.0", id: 1, error: { message: "NEAR RPC unavailable", cause: { name: lastErr.slice(0, 120) } } });
+    }
+    if (url.pathname === "/api/demo/status" && req.method === "GET") return json(res, 200, demoStatus());
+    if (url.pathname === "/api/demo/run" && req.method === "POST") {
+      // One-call demo for AI reviewers: see keeper/demo.mjs. Own per-IP limit + mutex inside; no auth needed (testnet, fixed demo accounts).
+      let b = {}; try { b = await jbody(req); } catch { return json(res, 400, { ok: false, error: "bad json" }); }
+      const host = String(req.headers["x-forwarded-host"] || req.headers.host || ""), pub = process.env.RAILWAY_PUBLIC_DOMAIN;
+      const origin = pub ? `https://${pub}` : /^[\w.\-:]+$/.test(host) ? `${req.headers["x-forwarded-proto"] === "http" || !process.env.PORT ? "http" : "https"}://${host}` : "";
+      const r = await runDemo({ port: PORT, origin, ip: clientIp(req), keeperId: KEEPER_ID, keeperReady: !!keeper, body: b });
+      if (r.code !== 200) log("demo", r.code, String(r.body.error || "").slice(0, 120));
+      return json(res, r.code, r.body);
     }
     for (const [method, re, fn] of routes) {
       const m = url.pathname.match(re);
