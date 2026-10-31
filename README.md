@@ -48,7 +48,7 @@ Tidepool is a separate tool from this project, made by the same builder (see Dis
 
 ## Going to mainnet
 
-Nothing here has been deployed or tested on mainnet. Taken from the code, this is what would change.
+Tidepool's API uses the same request and response shapes as NEAR's official 1Click API, so no new logic is needed. Going to mainnet means switching the values below (the enclave is rebuilt with them).
 
 | What | Where in the repo | Testnet now | Mainnet |
 | --- | --- | --- | --- |
