@@ -32,7 +32,7 @@ export default function WalletPage() {
   const [acts, setActs] = useState<Act[]>([]);
   const load = () => account && balances(account).then(setBal).catch(() => {});
   useEffect(() => { if (!account) return; setActs(readActs(account)); load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [account]);
-  // ft_balance_of on each token contract for the connected account (works for Privy and wallet-selector accounts alike).
+  // ft_balance_of on each token contract for the connected account (works for Privy and NEAR Connect accounts alike).
   // wNEAR is a NEP-141 here too (wnear.tidepool-sandbox.testnet), so ft_balance_of is the balance a deposit actually spends.
   // A failed read keeps the last value (or null = unknown), so it never blocks a deposit by itself.
   const walletToks = TOKENS.filter((x: any) => !x.chain) as any[];

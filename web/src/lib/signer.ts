@@ -1,5 +1,5 @@
 // One signing surface for both kinds of user: Privy (embedded implicit account, raw-hash signing)
-// and external NEAR wallets (Wallet Selector signMessage). Both produce the same NEP-413 object.
+// and external NEAR wallets (NEAR Connect signMessage). Both produce the same NEP-413 object.
 import { VERIFIER, signIntent } from "@shared/otc.mjs";
 import { walletSession, signNep413Wallet, ensureVerifierKey, APP_RECIPIENT } from "./wallet";
 import { publicKeyB58, signHash, accessToken as privyToken } from "./privy";

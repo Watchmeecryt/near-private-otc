@@ -16,6 +16,7 @@ type Bridge = {
 };
 const B: { cur: Bridge | null; waiters: (() => void)[]; loginWaiters: ((ok: boolean) => void)[] } = { cur: null, waiters: [], loginWaiters: [] };
 const listeners = new Set<() => void>();
+export const notifyAuthChange = () => listeners.forEach((f) => f());
 export const onAuthChange = (f: () => void) => { listeners.add(f); return () => { listeners.delete(f); }; };
 
 function BridgeInner() {

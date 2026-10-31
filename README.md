@@ -40,7 +40,7 @@ AI agents can also trade here (see [AGENTS.md](AGENTS.md)); that is a feature, n
 **Dependencies** (from `package.json`, `web/package.json` and `enclave/Cargo.toml`):
 
 - Keeper / shared (Node 20+): `eciesjs`, `jose`, `near-api-js` (v5).
-- Web app: `react`, `react-dom`, `react-router-dom`, `vite`, `@vitejs/plugin-react`, `typescript`, `near-api-js` (v7), `eciesjs`, `@privy-io/react-auth`, `@near-wallet-selector/*` (core, modal-ui, meteor-wallet, hot-wallet, intear-wallet, here-wallet, my-near-wallet, ledger), `@solana/kit`, `@solana-program/system`, `@solana-program/token`, `@phosphor-icons/react`, `@dicebear/core`, `@dicebear/collection`, `@unlocalhosted/metalui`, `buffer`. Fonts Geist and OpenRunde (SIL OFL, files in `web/public/fonts`).
+- Web app: `react`, `react-dom`, `react-router-dom`, `vite`, `@vitejs/plugin-react`, `typescript`, `near-api-js` (v7), `eciesjs`, `@privy-io/react-auth`, `@hot-labs/near-connect` (0.11.4), `@solana/kit`, `@solana-program/system`, `@solana-program/token`, `@phosphor-icons/react`, `@dicebear/core`, `@dicebear/collection`, `@unlocalhosted/metalui`, `buffer`. Fonts Geist and OpenRunde (SIL OFL, files in `web/public/fonts`).
 - Enclave (Rust, `wasm32-wasip2`): `serde`, `serde_json`, `sha2`, `hkdf`, `hex`, `base64`, `p256`, `ecies`, `libsecp256k1`, `ed25519-dalek`, `bs58`, `wasi-http-client`.
 
 **External pieces:**
@@ -48,7 +48,7 @@ AI agents can also trade here (see [AGENTS.md](AGENTS.md)); that is a feature, n
 - NEAR Intents verifier: the upstream `near/intents` release `defuse/v0.4.2` wasm, unmodified (`contracts/`, sha256 in `contracts/README.md`). On testnet it runs at `verifier.tidepool-sandbox.testnet`, deployed and operated by Tidepool. On mainnet this would be `intents.near`.
 - Tidepool (https://www.usetidepool.tech): sandbox verifier, test tokens, faucet, and the testnet 1Click API with bridged USDC/USDT.
 - OutLayer (TEE on Intel TDX): runs our enclave worker (`otcdesk-enclave.testnet/private-otc`).
-- Privy: Google sign-in and NEAR implicit accounts; NEAR Wallet Selector wallets as the other sign-in.
+- Privy: Google sign-in and NEAR implicit accounts; NEAR wallets via HOT Labs NEAR Connect as the other sign-in.
 - CoinGecko (price for the $50 holding check), NearBlocks (explorer links), public NEAR RPC (FastNEAR, Pagoda, Lava), Railway (hosting).
 
 ## Disclosure (Q-015)
@@ -176,7 +176,7 @@ The enclave's `check` output (public on chain in the OutLayer execution result) 
 ## Sign-in: Privy or a NEAR wallet
 
 - **Google (Privy):** a NEAR implicit account is created for you; signing is silent (Privy raw-hash signing).
-- **NEAR wallets (NEAR Wallet Selector v10):** Meteor, HOT, Intear, HERE, MyNearWallet, Ledger. Log in by signing a NEP-413 message `{otc_login: account, ts}` for recipient `near-private-otc`. The keeper (`POST /api/auth/wallet`) checks the ed25519 signature and that the key is a full-access key of the account (or the implicit account itself), then issues a 24 h session. The enclave re-checks the same signed login itself.
+- **NEAR wallets (HOT Labs NEAR Connect, `@hot-labs/near-connect`, testnet):** any wallet in the NEAR Connect picker that supports `signMessage` and `signAndSendTransaction` (HOT, Meteor, Intear and others). Log in by signing a NEP-413 message `{otc_login: account, ts}` for recipient `near-private-otc`. The keeper (`POST /api/auth/wallet`) checks the ed25519 signature and that the key is a full-access key of the account (or the implicit account itself), then issues a 24 h session. The enclave re-checks the same signed login itself.
 - Trading signs `token_diff` intents with the wallet's `signMessage` (recipient = verifier). Named accounts register their key on the verifier once (`add_public_key`, 1 yoctoNEAR, prompted automatically).
 - Deposits: Wallet → "Deposit from your wallet" sends `ft_transfer_call` to the verifier (NEAR is wrapped with `near_deposit` in the same transaction). Withdraw (all sign-ins): a signed `ft_withdraw` intent relayed by the keeper; wNEAR arrives as wNEAR.
 

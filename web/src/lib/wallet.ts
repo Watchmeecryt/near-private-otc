@@ -1,17 +1,13 @@
-// External NEAR wallets via NEAR Wallet Selector. Wallet users sign NEP-413 messages (sign-in, intents,
-// approvals) with signMessage, and send their own transactions (deposits, add_public_key on the verifier).
-import type { WalletSelector } from "@near-wallet-selector/core";
-import type { WalletSelectorModal } from "@near-wallet-selector/modal-ui";
+// External NEAR wallets via HOT Labs' NEAR Connect (@hot-labs/near-connect): wallet code runs in sandboxed iframes
+// loaded from a shared manifest, and the connector shows its own wallet picker. Wallet users sign NEP-413 messages
+// (sign-in, intents, approvals) with signMessage, and send their own transactions (deposits, add_public_key on the verifier).
+import { NearConnector } from "@hot-labs/near-connect";
 import { VERIFIER, base58, b64, randomBytes } from "@shared/otc.mjs";
-import { viewCall } from "./privy";
+import { viewCall, notifyAuthChange } from "./privy";
 
-/** Wallets whose signMessage we can't use here (hardware). Shown, but signing is disabled. */
-export const NO_SIGN = new Set(["ledger"]);
-export const WALLETS = [
-  { id: "meteor-wallet", name: "Meteor", sign: true }, { id: "hot-wallet", name: "HOT", sign: true },
-  { id: "intear-wallet", name: "Intear", sign: true }, { id: "here-wallet", name: "HERE", sign: true },
-  { id: "my-near-wallet", name: "MyNearWallet", sign: true }, { id: "ledger", name: "Ledger", sign: false },
-];
+/** Wallets whose signMessage we can't use here. NEAR Connect is asked only for wallets that can sign messages and
+ *  send transactions, so this stays empty; kept so callers can still gate on it. */
+export const NO_SIGN = new Set<string>();
 export const APP_RECIPIENT = "near-private-otc";
 const LS = "otc-wallet";
 type Sess = { account: string; walletId: string; token?: string; proof?: any; exp?: number };
@@ -19,15 +15,14 @@ export const walletSession = (): Sess | null => { try { const s = JSON.parse(loc
 const saveSess = (s: Sess | null) => { s ? localStorage.setItem(LS, JSON.stringify(s)) : localStorage.removeItem(LS); };
 export const walletCanSign = () => { const s = walletSession(); return !!s && !NO_SIGN.has(s.walletId); };
 
-let sel: Promise<WalletSelector> | null = null; let modal: WalletSelectorModal | null = null;
-async function selector() {
-  if (!sel) sel = (async () => {
-    const [{ setupWalletSelector }, m, h, i, he, mn, l] = await Promise.all([
-      import("@near-wallet-selector/core"), import("@near-wallet-selector/meteor-wallet"), import("@near-wallet-selector/hot-wallet"),
-      import("@near-wallet-selector/intear-wallet"), import("@near-wallet-selector/here-wallet"), import("@near-wallet-selector/my-near-wallet"), import("@near-wallet-selector/ledger")]);
-    return setupWalletSelector({ network: "testnet", modules: [m.setupMeteorWallet(), h.setupHotWallet(), i.setupIntearWallet(), he.setupHereWallet(), mn.setupMyNearWallet(), l.setupLedger()] as any });
-  })();
-  return sel;
+let connector: NearConnector | null = null;
+function getConnector(): NearConnector {
+  if (!connector) {
+    connector = new NearConnector({ network: "testnet", features: { signMessage: true, signAndSendTransaction: true } });
+    // Signing out inside the wallet (or another tab) drops our session too.
+    connector.on("wallet:signOut", () => { if (walletSession()) { saveSess(null); notifyAuthChange(); } });
+  }
+  return connector;
 }
 // Demo/test builds only (VITE_DEMO_WALLET=1, never set in production): a scripted key wallet injected by the
 // test harness as window.__demoNear, so recordings and e2e runs can sign NEP-413 messages headlessly.
@@ -35,23 +30,18 @@ const demo = (): any => (import.meta.env.VITE_DEMO_WALLET === "1" ? (window as a
 async function activeWallet(): Promise<any> {
   const d = demo();
   if (d) return { signMessage: async (p: any) => d.signMessage({ message: p.message, recipient: p.recipient, nonce: Array.from(p.nonce) }), signAndSendTransaction: async () => { throw new Error("The demo wallet does not send NEAR transactions."); } };
-  const s = await selector(); return s.wallet();
+  try { return (await getConnector().getConnectedWallet()).wallet; } catch { throw new Error("Your NEAR wallet is no longer connected. Sign in again."); }
 }
 
-/** Open the Wallet Selector modal; resolves with the connected account (or rejects if closed). */
+/** Open NEAR Connect's wallet picker; resolves with the connected account (or rejects if closed). */
 export async function connectWallet(): Promise<Sess> {
   const d = demo();
   if (d) { saveSess({ account: await d.account(), walletId: "demo-key" }); await walletApiLogin(); return walletSession()!; }
-  const s = await selector();
-  if (!modal) { const { setupModal } = await import("@near-wallet-selector/modal-ui"); await import("@near-wallet-selector/modal-ui/styles.css"); modal = setupModal(s, { contractId: VERIFIER, description: "Connect a NEAR testnet wallet to trade on Private OTC." }); }
-  const acct = await new Promise<{ accountId: string; walletId: string }>((res, rej) => {
-    const sub = s.on("signedIn", (e: any) => { sub.remove(); res({ accountId: e.accounts[0].accountId, walletId: e.walletId }); });
-    const h = modal!.on("onHide", () => setTimeout(() => { if (!s.isSignedIn()) { sub.remove(); h.remove(); rej(new Error("Wallet connection cancelled")); } }, 400));
-    modal!.show();
-  });
-  const sess: Sess = { account: acct.accountId, walletId: acct.walletId };
-  saveSess(sess);
-  if (!NO_SIGN.has(acct.walletId)) await walletApiLogin();
+  const wallet = await getConnector().connect();
+  const accounts = await wallet.getAccounts();
+  if (!accounts[0]) throw new Error("The wallet did not share an account");
+  saveSess({ account: accounts[0].accountId, walletId: wallet.manifest.id });
+  if (!NO_SIGN.has(wallet.manifest.id)) await walletApiLogin();
   return walletSession()!;
 }
 /** NEP-413 sign-in for the keeper API (and the enclave, which re-checks the same proof). */
@@ -62,17 +52,16 @@ export async function walletApiLogin() {
   const j = await r.json(); if (!r.ok) throw new Error(j.error || "Wallet sign-in failed");
   saveSess({ ...s, token: j.token, proof, exp: Date.now() + 23 * 3600e3 });
 }
-export async function disconnectWallet() { saveSess(null); try { await (await activeWallet()).signOut(); } catch {} }
+export async function disconnectWallet() { saveSess(null); if (demo()) return; try { await getConnector().disconnect(); } catch {} }
 
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 /** signMessage -> MultiPayload-shaped NEP-413 object {standard, payload, public_key, signature}. */
 export async function signNep413Wallet(message: string, recipient: string, nonce: Uint8Array) {
   const s = walletSession(); if (!s) throw new Error("Connect a wallet first");
-  if (NO_SIGN.has(s.walletId)) throw new Error("This wallet can't sign messages here. Use Meteor, HOT, Intear, HERE or MyNearWallet.");
+  if (NO_SIGN.has(s.walletId)) throw new Error("This wallet can't sign messages here. Pick another wallet.");
   const w: any = await activeWallet();
   if (!w.signMessage) throw new Error("This wallet doesn't support message signing.");
-  const { Buffer } = await import("buffer");
-  const r = await w.signMessage({ message, recipient, nonce: Buffer.from(nonce) });
+  const r = await w.signMessage({ message, recipient, nonce });
   if (!r?.signature) throw new Error("The wallet didn't return a signature.");
   if (r.accountId && r.accountId !== s.account) throw new Error("Signed with a different account.");
   const sig = /^[A-Za-z0-9+/=]+$/.test(r.signature) && r.signature.length % 4 === 0 ? unb64(r.signature) : null;
@@ -81,10 +70,8 @@ export async function signNep413Wallet(message: string, recipient: string, nonce
 
 export type FnCall = { method: string; args: object; tgas?: number; deposit?: string };
 export async function walletTx(receiverId: string, calls: FnCall[]) {
-  // Wallet Selector v10 takes near-api-js Actions (borsh enum), not the old {type, params} objects.
-  const { actionCreators } = await import("@near-wallet-selector/core");
   const w: any = await activeWallet();
-  const actions = calls.map((c) => actionCreators.functionCall(c.method, c.args, BigInt(c.tgas ?? 50) * 10n ** 12n, BigInt(c.deposit ?? "0")));
+  const actions = calls.map((c) => ({ type: "FunctionCall", params: { methodName: c.method, args: c.args, gas: (BigInt(c.tgas ?? 50) * 10n ** 12n).toString(), deposit: c.deposit ?? "0" } }));
   const out = await w.signAndSendTransaction({ receiverId, actions });
   return out?.transaction?.hash as string | undefined;
 }

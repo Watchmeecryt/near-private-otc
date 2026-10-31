@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { EnvelopeSimple, Wallet, X } from "@phosphor-icons/react";
 import { currentUser, ensureAccount, onAuthChange, signIn, signOut } from "../lib/privy";
-import { walletSession, connectWallet, disconnectWallet, walletApiLogin, WALLETS } from "../lib/wallet";
+import { walletSession, connectWallet, disconnectWallet, walletApiLogin } from "../lib/wallet";
 
 type Kind = "privy" | "wallet" | null;
 type Ctx = { account: string | null; ready: boolean; email: string | null; kind: Kind; walletId: string | null; login: () => Promise<string>; logout: () => Promise<void>; relogin: () => Promise<void> };
@@ -47,9 +47,8 @@ export function AppState({ children }: { children: ReactNode }) {
           <div className="card card-pad signin-modal" role="dialog" aria-modal="true" aria-label="Sign in" onClick={(e) => e.stopPropagation()}>
             <div className="row-between"><h3 className="h3">Sign in to Private OTC</h3><button className="icon-btn" onClick={close} aria-label="Close"><X size={16} /></button></div>
             <button className="signin-opt" disabled={!!busy} onClick={viaPrivy}><EnvelopeSimple size={22} weight="duotone" /><span><b>Google</b><small>We create a NEAR testnet account for you. No wallet needed.</small></span></button>
-            <button className="signin-opt" disabled={!!busy} onClick={viaWallet}><Wallet size={22} weight="duotone" /><span><b>{busy === "wallet" ? "Waiting for your wallet…" : "Connect NEAR wallet"}</b><small>{WALLETS.map((w) => w.name).join(", ")}. You'll sign one message to log in.</small></span></button>
+            <button className="signin-opt" disabled={!!busy} onClick={viaWallet}><Wallet size={22} weight="duotone" /><span><b>{busy === "wallet" ? "Waiting for your wallet…" : "Connect NEAR wallet"}</b><small>Pick a wallet in NEAR Connect. You'll sign one message to log in.</small></span></button>
             {err && <p className="sr-hint err">{err}</p>}
-            <p className="tiny muted">Ledger can connect and deposit, but can't sign trade messages here.</p>
           </div>
         </div>
       )}
