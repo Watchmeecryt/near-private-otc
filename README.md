@@ -4,7 +4,7 @@
 
 **Live app (NEAR testnet): https://near-private-otc-productio999n.up.railway.app** - test tokens only, no real value. Agents: [https://near-private-otc-productio999n.up.railway.app/llms.txt](https://near-private-otc-productio999n.up.railway.app/llms.txt) and [AGENTS.md](AGENTS.md). Or [run it locally](#run-locally) at `http://127.0.0.1:8790`.
 
-Built by [@log0dev](https://x.com/log0dev) on X.
+Built by [@priva_cie](https://x.com/priva_cie) on X.
 
 - **Problem:** OTC traders can't find a counterparty unless they already know one, and posting size and price publicly leaks information.
 
