@@ -12,6 +12,7 @@ Live app (NEAR testnet): https://near-private-otc-productio999n.up.railway.app
 - Enclave: OutLayer project otcdesk-enclave.testnet/private-otc, pubkey 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8
 - Sign-in: Privy (Google) → NEAR implicit account, or a NEAR wallet via HOT Labs NEAR Connect (wallets that support message signing); the board needs no sign-in
 - Built at NEAR HACKATHON 2026; track: defi (privacy is a supporting feature: terms sealed in OutLayer TDX)
+- Disclosure (Q-015): the same builder also submits Tidepool (track `open`; https://github.com/Watchmeecryt/tidepool, https://www.usetidepool.tech), a separate, independent testnet sandbox for NEAR Intents. This app uses Tidepool as its testnet backend; the two are different products with separate code and deployments.
 
 ## Testnet and Tidepool
 - The app runs on NEAR testnet against Tidepool (https://www.usetidepool.tech), a testnet sandbox for NEAR Intents, because NEAR Intents has no testnet (HACKATHON.md Q-007). Testnet-only projects are eligible in all tracks (Q-010).

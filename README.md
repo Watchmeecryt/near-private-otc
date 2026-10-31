@@ -83,9 +83,9 @@ Also: the `scripts/deploy-near.mjs` verifier and token deployment is not used on
 
 ## Disclosure (Q-015)
 
-The same builder is submitting two independent projects to NEAR HACKATHON: this one (NEAR Private OTC, a private OTC deal board) and **Morrowseal** (a private inheritance vault with a dead-man timer): https://morrowseal-production.up.railway.app. They are different products with different problems, users, contracts, enclaves and deployments. They were built with the same general stack (OutLayer, Privy sign-in, ECIES sealing), which is why some helper code looks alike. This is not the same project submitted twice.
+The same builder is submitting two independent projects to NEAR HACKATHON: this one (NEAR Private OTC, track `defi`, a private OTC deal board) and **Tidepool** (track `open`, Open Innovation), a free testnet sandbox for NEAR Intents: repo https://github.com/Watchmeecryt/tidepool, live https://www.usetidepool.tech, swap app https://app.usetidepool.tech.
 
-Tidepool (https://www.usetidepool.tech) is a free, public testnet tool for NEAR Intents builders, made by the same builder. It is not submitted to NEAR HACKATHON. NEAR Private OTC uses it as testnet infrastructure (see [Testnet and Tidepool](#testnet-and-tidepool)).
+They are independent products with different problems, users, tracks, code and deployments. Tidepool is general infrastructure that any NEAR Intents developer can use; NEAR Private OTC is a separate application that uses Tidepool as its testnet backend (verifier, faucet, 1Click API), like any other client of Tidepool's API would (see [Testnet and Tidepool](#testnet-and-tidepool)). This is not the same project submitted twice.
 
 ## How it works: one trade, six steps
 

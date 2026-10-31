@@ -125,7 +125,7 @@ export default function Deal() {
   };
 
   const gate = !me ? <NeedSignIn what="Sign in to request the exact terms." />
-    : !canSign ? <p className="wallet-note">This wallet can't sign messages here. Connect Meteor, HOT, Intear, HERE or MyNearWallet, or sign in with Google.</p>
+    : !canSign ? <p className="wallet-note">This wallet can't sign messages here. Pick a wallet in the NEAR Connect list that supports message signing (HOT, for example), or sign in with Google.</p>
     : (isMaker || myReq === "approved") ? <div className="gate"><Eye size={26} weight="duotone" /><p>{isMaker ? "Your terms are sealed in the enclave." : "The maker approved you."} Open them in this browser; nobody else can read them.</p><button className="btn btn-dark" disabled={!!busy} onClick={() => doReveal()}>{busy || (isMaker ? "Open my deal" : "Open the terms")}</button></div>
     : myReq === "pending" ? <div className="gate"><UsersThree size={26} weight="duotone" /><p>Request sent. You passed the $50 check; waiting for the maker to approve you.</p></div>
     : !live ? <div className="gate"><Eye size={26} weight="duotone" /><p>This deal is {String(d.status).toLowerCase()}. It no longer takes requests.</p></div>
