@@ -2,7 +2,7 @@
 
 Live app (NEAR testnet): https://near-private-otc-productio999n.up.railway.app
 
-> Private OTC deal board on NEAR testnet. The board is open to everyone and shows pair, side, expiry, status, request and counter-offer counts only. To see terms a taker requests access: they must hold at least $50 (CoinGecko) of the token the maker wants, wallet + verifier; a fixed spam filter independent of deal size, not a fill guarantee, then the maker approves (or auto-approves anyone with funds). Sign in with email/Google (Privy) or a NEAR wallet (Meteor, HOT, Intear, HERE, MyNearWallet; Ledger without message signing). Deals can be public (listed on the board) or private (link only, never listed; maker can switch private to public, not back). Expiry options: 2 min (demo), 1h, 24h, 7d, enforced by the verifier via the signed intent deadline. Exact terms and counter-offers are sealed to an OutLayer TEE enclave and revealed only to approved requesters. Matching NEP-413 signed token_diff intents settle atomically via execute_intents on a NEAR Intents verifier (verifier.tidepool-sandbox.testnet).
+> Private OTC deal board on NEAR testnet. The board is open to everyone and shows pair, side, expiry, status, request and counter-offer counts only. To see terms a taker requests access: they must hold at least $50 (CoinGecko) of the token the maker wants, wallet + verifier; a fixed spam filter independent of deal size, not a fill guarantee, then the maker approves (or auto-approves anyone with funds). Sign in with Google (Privy) or a NEAR wallet via HOT Labs NEAR Connect (wallets that support message signing, e.g. HOT, Meteor, Intear). Deals can be public (listed on the board) or private (link only, never listed; maker can switch private to public, not back). Expiry options: 2 min (demo), 1h, 24h, 7d, enforced by the verifier via the signed intent deadline. Exact terms and counter-offers are sealed to an OutLayer TEE enclave and revealed only to approved requesters. Matching NEP-413 signed token_diff intents settle atomically via execute_intents on a NEAR Intents verifier (verifier.tidepool-sandbox.testnet).
 
 ## Key facts
 - Verifier: verifier.tidepool-sandbox.testnet (near/intents defuse v0.4.2 release wasm)
@@ -10,14 +10,20 @@ Live app (NEAR testnet): https://near-private-otc-productio999n.up.railway.app
 - Tokens (Tidepool test tokens, no value): USDC, USDT, wNEAR, ETH, wBTC, XAUT = <usdc|usdt|wnear|eth|wbtc|xaut>.tidepool-sandbox.testnet; bridged: nep141:<base|arb|eth>-0x<erc20>.tp-omft.testnet (USDC.base, USDT.base, USDC.arb, USDT.arb, USDC.eth, USDT.eth: Tidepool's bridged testnet stablecoins)
 - Cross-chain: Cross-chain deals, settled by NEAR Intents: fund a deal from an EVM testnet (Base, Arbitrum or Ethereum Sepolia USDC/USDT) and receive on any supported chain or keep it on NEAR. Cross-chain legs go through the 1Click API: on testnet the app uses Tidepool (https://www.usetidepool.tech), the community-built 1Click-compatible API and bridge; on mainnet it uses NEAR's official 1Click. The deal itself always settles atomically inside the NEAR Intents verifier, so the privacy model is unchanged. Endpoints: POST /api/bridge/quote, POST /api/bridge/send, POST /api/bridge/submit, GET /api/bridge/status.
 - Enclave: OutLayer project otcdesk-enclave.testnet/private-otc, pubkey 03312dd677a5864ffc8cff352b7419b90896c9aee20e4f79308c1106517a4947e8
-- Sign-in: Privy (Google) → NEAR implicit account, or a NEAR wallet via Wallet Selector; the board needs no sign-in
+- Sign-in: Privy (Google) → NEAR implicit account, or a NEAR wallet via HOT Labs NEAR Connect (wallets that support message signing); the board needs no sign-in
 - Built at NEAR HACKATHON 2026; track: defi (privacy is a supporting feature: terms sealed in OutLayer TDX)
+
+## Testnet and Tidepool
+- The app runs on NEAR testnet against Tidepool (https://www.usetidepool.tech), a testnet sandbox for NEAR Intents, because NEAR Intents has no testnet (HACKATHON.md Q-007). Testnet-only projects are eligible in all tracks (Q-010).
+- Tidepool runs NEAR's official, unmodified Intents contract (near/intents defuse v0.4.2) as verifier.tidepool-sandbox.testnet, plus a 1Click-compatible API (https://www.usetidepool.tech/v0), test tokens and a faucet.
+- Deals settle by the keeper (otcdesk.testnet) relaying both parties' signed token_diff intents with execute_intents on that verifier (after simulate_intents). 1Click (Tidepool) is used only for cross-chain deposits and payouts.
+- Going to mainnet (see README): verifier -> intents.near; keeper ONECLICK_URL -> NEAR's official 1Click API; token ids from 1Click /v0/tokens; mainnet keeper account, OutLayer project and enclave rebuild/redeploy; network, explorer and RPC settings; no faucet.
 
 ## Pages
 - [Board](/app): open deals (coarse info)
 - [New deal](/app/new)
 - [My deals](/app/mine)
-- [Wallet](/app/wallet): verifier balances, faucet (Tidepool: USDC, USDT, wNEAR, ETH, wBTC, XAUT), deposit from your wallet (NEAR-wallet sign-ins), withdraw to your own NEAR account (everyone, signed ft_withdraw intent), activity
+- [Wallet](/app/wallet): verifier balances, faucet (Tidepool: USDC, USDT, wNEAR, ETH, wBTC, XAUT), deposit from your wallet (all sign-ins; shows your on-chain wallet balance per token), withdraw to your own NEAR account (everyone, signed ft_withdraw intent), activity
 - Balances are held in the NEAR Intents verifier. Deposits and withdrawals are public on chain, and settled trades are visible on chain; open deal terms stay sealed.
 - Testnet trust note: the verifier `verifier.tidepool-sandbox.testnet` is Tidepool's unmodified NEAR Intents defuse v0.4.2 sandbox, operated by Tidepool. So on testnet Tidepool's operator could in theory upgrade the contract or move balances held in it. On mainnet, settlement would use the official intents.near.
 - [How it works](/app/how): flow, privacy, every NEAR feature used
